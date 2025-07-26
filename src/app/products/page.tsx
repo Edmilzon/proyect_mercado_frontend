@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CategorySelector } from '@/components/ui/CategorySelector';
 import Navbar from '@/components/layout/Navbar';
 import { productsService } from '@/services/products';
 import { categoriesService } from '@/services/categories';
@@ -186,18 +187,11 @@ export default function ProductsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Categoría
                     </label>
-                    <select
+                    <CategorySelector
                       value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                    >
-                      <option value="">Todas las categorías</option>
-                      {categories.map((category) => (
-                        <option key={category.categoria_id} value={category.categoria_id}>
-                          {category.nombre}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedCategory}
+                      placeholder="Todas las categorías"
+                    />
                   </div>
 
                   {/* Price Range */}

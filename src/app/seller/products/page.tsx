@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { CategorySelector } from '@/components/ui/CategorySelector';
 import Navbar from '@/components/layout/Navbar';
 import { productsService } from '@/services/products';
 import { categoriesService } from '@/services/categories';
@@ -279,21 +280,13 @@ export default function ProductsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Categoría
+                      Categoría *
                     </label>
-                    <select
-                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-black ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <CategorySelector
                       value={formData.categoria_id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, categoria_id: e.target.value }))}
-                      required
-                    >
-                      <option value="">Seleccionar categoría</option>
-                      {categories.map(cat => (
-                        <option key={cat.categoria_id} value={cat.categoria_id}>
-                          {cat.nombre}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(categoryId) => setFormData(prev => ({ ...prev, categoria_id: categoryId }))}
+                      placeholder="Seleccionar categoría principal"
+                    />
                   </div>
                   
                   <Input
