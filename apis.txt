@@ -1,0 +1,701 @@
+USUARIOS
+
+🔐 @/autenticacion
+1. POST https://proyect-mercado-backend.fly.dev/autenticacion/login
+Descripción: Login de usuario, retorna JWT.
+Body:
+	  {
+    "email": "usuario@correo.com",
+    "password": "123456"
+  }
+Respuesta:
+	{
+  "token": "jwt_token",
+  "usuario": {
+    "usuario_id": "uuid",
+    "email": "usuario@email.com",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "numero_telefono": "123456789",
+    "rol": "comprador",
+    "esta_activo": true,
+    "ultima_sesion_at": "2024-01-01T00:00:00Z",
+    "creado_at": "2024-01-01T00:00:00Z"
+  }
+}
+
+
+👤 @/usuarios
+2. POST : https://proyect-mercado-backend.fly.dev/usuarios/registro
+Descripción: Registrar un nuevo usuario (comprador, vendedor, admin, etc.).
+Body:
+	  {
+    "email": "usuario@correo.com",
+    "password": "123456",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "numero_telefono": "71234567",
+    "rol": "vendedor" // o "comprador", "admin", etc.
+  }
+
+
+
+
+
+2.1 OBTENER PERFIL DEL USUARIO AUTENTICADO
+GET https://proyect-mercado-backend.fly.dev/usuarios/perfil
+# Headers requeridos:
+Authorization: Bearer jwt_token
+
+# Respuesta:
+{
+  "usuario": {
+    "usuario_id": "uuid",
+    "email": "usuario@email.com",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "numero_telefono": "123456789",
+    "rol": "comprador",
+    "esta_activo": true,
+    "ultima_sesion_at": "2024-01-01T00:00:00Z",
+    "creado_at": "2024-01-01T00:00:00Z",
+    "actualizado_at": "2024-01-01T00:00:00Z"
+  }
+}
+
+2.2. Obtener Usuario por ID
+
+GET /usuarios/{usuario_id}
+Authorization: Bearer jwt_token
+
+
+
+3. POST https://proyect-mercado-backend.fly.dev/usuarios/{usuario_id}/direcciones
+Descripción: Crear una dirección para un usuario (requiere JWT).
+Headers:
+Authorization: Bearer TU_TOKEN_JWT
+Body:
+	  {
+    "etiqueta": "Casa",
+    "calle_avenida": "Av. Principal 123",
+    "ciudad": "Cochabamba",
+    "departamento": "Cochabamba",
+    "codigo_postal": "1234",
+    "pais": "Bolivia",
+    "latitud": -17.3895,
+    "longitud": -66.1568,
+    "es_predeterminada": true
+  }
+
+
+4. GET https://proyect-mercado-backend.fly.dev/usuarios/{usuario_id}/direcciones
+Descripción: Listar todas las direcciones de un usuario (requiere JWT).
+Headers:
+Authorization: Bearer TU_TOKEN_JWT
+
+🛒 @/vendedores
+5. POST https://proyect-mercado-backend.fly.dev/vendedores
+Descripción: Registrar datos extra de vendedor (requiere que el usuario tenga rol vendedor).
+Body:
+{
+  "vendedor_id": "uuid_del_usuario",
+  "numero_identificacion": "12345678",
+  "estado_onboarding": "pendiente",
+  "latitud_actual": -16.4897,
+  "longitud_actual": -68.1193,
+  "zona_asignada_id": "uuid_zona"
+}
+
+
+6. GET https://proyect-mercado-backend.fly.dev/vendedores
+Descripción: Listar todos los vendedores (incluye datos de usuario y datos extra de vendedor).
+
+7. POST https://proyect-mercado-backend.fly.dev/vendedores/ubicaciones
+Descripción: Registrar ubicación de un vendedor (requiere JWT).
+Headers:
+Authorization: Bearer TU_TOKEN_JWT
+Body:
+	  {
+    "vendedor_id": "UUID_DEL_VENDEDOR",
+    "latitud": -17.3895,
+    "longitud": -66.1568,
+    "precision_m": 5.0
+  }
+
+8. GET https://proyect-mercado-backend.fly.dev/vendedores/{vendedor_id}/ubicaciones
+Descripción: Listar ubicaciones históricas de un vendedor (requiere JWT).
+Headers:
+Authorization: Bearer TU_TOKEN_JWT
+
+
+
+
+ WebSocket (ubicación en tiempo real)
+URL: wss://proyect-mercado-backend.fly.dev
+Evento para enviar: ubicacion_actualizada
+	  {
+    "event": "ubicacion_actualizada",
+    "data": {
+      "vendedor_id": "UUID_DEL_VENDEDOR",
+      "latitud": -17.3895,
+      "longitud": -66.1568,
+      "precision_m": 5.0
+    }
+  }
+
+Evento recibido:
+Todos los clientes conectados reciben el evento ubicacion_actualizada con los datos enviados.
+
+
+
+ @/zonas
+9. POST https://proyect-mercado-backend.fly.dev/zonas
+Descripción: Crear una nueva zona de entrega.
+Body:
+	{
+  "nombre": "Zona Centro La Paz",
+  "descripcion": "Zona de entrega en el centro de La Paz",
+  "coordenadas_poligono": "{\"type\":\"Polygon\",\"coordinates\":[[[-68.15,-16.5],[-68.1,-16.5],[-68.1,-16.45],[-68.15,-16.45],[-68.15,-16.5]]]}",
+  "tarifa_envio": 15.50,
+  "esta_activa": true
+}
+
+10. GET https://proyect-mercado-backend.fly.dev/zonas
+Descripción: Listar todas las zonas de entrega.
+
+11. GET https://proyect-mercado-backend.fly.dev/zonas/activas
+Descripción: Listar solo las zonas de entrega activas.
+
+12. GET https://proyect-mercado-backend.fly.dev/zonas/{zona_id}
+Descripción: Obtener una zona específica por ID.
+
+
+
+
+ETAPA 2 - PRODUCTOS Y CATEGORÍAS (COMPLETA)
+	CATEGORIAS
+
+13. POST https://proyect-mercado-backend.fly.dev/categorias
+Descripción: Crear una nueva categoría (con jerarquía padre-hijo).
+Body:
+	{
+  "nombre": "Electrónicos",
+  "descripcion": "Productos electrónicos y tecnología",
+  "categoria_padre_id": null
+}
+
+14. GET https://proyect-mercado-backend.fly.dev/categorias
+Descripción: Listar todas las categorías con jerarquía.
+
+15. GET https://proyect-mercado-backend.fly.dev/categorias/padres
+Descripción: Listar solo categorías padre (sin subcategorías).
+
+16. GET https://proyect-mercado-backend.fly.dev/categorias/{categoria_id}
+Descripción: Obtener categoría específica con subcategorías.
+
+17. GET https://proyect-mercado-backend.fly.dev/categorias/{categoria_id}
+Descripción: Obtener categoría específica con subcategorías.
+	{
+  "nombre": "Electrónicos Actualizados",
+  "descripcion": "Nueva descripción"
+}
+
+18. DELETE https://proyect-mercado-backend.fly.dev/categorias/{categoria_id}
+Descripción: Eliminar categoría (solo si no tiene subcategorías).
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+	PRODUCTOS
+
+19. POST https://proyect-mercado-backend.fly.dev/productos
+Descripción: Crear un nuevo producto (SKU automático).
+Body:
+	{
+  "nombre": "iPhone 15 Pro",
+  "descripcion": "El último iPhone con características avanzadas",
+  "precio_base": 1200.00,
+  "precio_actual": 1100.00,
+  "categoria_id": "uuid_categoria",
+  "cantidad_stock": 50,
+  "url_imagen_principal": "https://ejemplo.com/iphone.jpg",
+  "peso_g": 187
+}
+
+20. GET https://proyect-mercado-backend.fly.dev/productos
+Descripción: Listar todos los productos con categoría e imágenes.
+Respuesta:
+
+{
+  "productos": [
+    {
+      "producto_id": "uuid",
+      "nombre": "iPhone 15 Pro",
+      "descripcion": "El último iPhone con características avanzadas",
+      "precio_base": 1200.00,
+      "precio_actual": 1100.00,
+      "categoria_id": "uuid",
+      "categoria": {
+        "categoria_id": "uuid",
+        "nombre": "Smartphones"
+      },
+      "cantidad_stock": 50,
+      "url_imagen_principal": "https://ejemplo.com/iphone.jpg",
+      "esta_activo": true,
+      "sku": "IPH123456",
+      "peso_g": 187,
+      "imagenes": [...],
+      "creado_at": "2024-01-01T00:00:00Z",
+      "actualizado_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+
+21. GET https://proyect-mercado-backend.fly.dev/productos/buscar
+Descripción: Búsqueda avanzada con filtros.
+Query Parameters:
+?nombre=iphone&categoria_id=uuid&precio_min=1000&precio_max=1500&esta_activo=true&limit=20&offset=0
+
+
+22. GET https://proyect-mercado-backend.fly.dev/productos/{producto_id}
+Descripción: Obtener producto específico con detalles completos.
+
+23. PUT https://proyect-mercado-backend.fly.dev/productos/{producto_id}
+Descripción: Actualizar producto.
+Body:
+	{
+  "nombre": "iPhone 15 Pro Max",
+  "precio_actual": 1200.00,
+  "cantidad_stock": 75
+}
+
+24. DELETE https://proyect-mercado-backend.fly.dev/productos/{producto_id}
+Descripción: Eliminar producto.
+
+25. PUT https://proyect-mercado-backend.fly.dev/productos/{producto_id}/stock
+Descripción: Actualizar stock (suma/resta cantidad).
+Body:
+	{
+  "cantidad": 10
+}
+
+ GESTIÓN DE IMÁGENES
+
+26. POST https://proyect-mercado-backend.fly.dev/productos/{producto_id}/imagenes
+Descripción: Agregar imagen a un producto.
+Body:
+{
+  "url_imagen": "https://ejemplo.com/imagen1.jpg",
+  "orden_indice": 1
+}
+
+27. GET https://proyect-mercado-backend.fly.dev/productos/{producto_id}/imagenes
+Descripción: Listar todas las imágenes de un producto.
+
+
+28. DELETE https://proyect-mercado-backend.fly.dev/productos/imagenes/{imagen_id}
+Descripción: Eliminar imagen específica.
+
+🛒 ETAPA 3 - PEDIDOS Y VENTAS  
+
+
+PEDIDOS
+29. POST https://proyect-mercado-backend.fly.dev/pedidos
+Descripción: Crear un nuevo pedido (con cálculo automático de totales y generación de código QR).
+Headers: Authorization: Bearer jwt_token
+Body:
+	{
+  "comprador_id": "uuid_del_comprador",
+  "vendedor_id": "uuid_del_vendedor",
+  "direccion_entrega_id": "uuid_de_la_direccion",
+  "costo_envio": 15.50,
+  "monto_descuento": 10.00,
+  "notas_comprador": "Entregar en la puerta principal",
+  "whatsapp_pedido_id": "wa_123456",
+  "items": [
+    {
+      "producto_id": "uuid_del_producto",
+      "cantidad": 2
+    }
+  ]
+}
+
+30. GET https://proyect-mercado-backend.fly.dev/pedidos
+Descripción: Listar todos los pedidos (solo admins).
+Headers: Authorization: Bearer jwt_token
+
+31. GET https://proyect-mercado-backend.fly.dev/pedidos/mis-pedidos
+Descripción: Listar pedidos del usuario autenticado.
+Headers: Authorization: Bearer jwt_token
+
+32. GET https://proyect-mercado-backend.fly.dev/pedidos/vendedor/{vendedor_id}
+Descripción: Listar pedidos de un vendedor específico.
+Headers: Authorization: Bearer jwt_token
+
+33. GET https://proyect-mercado-backend.fly.dev/pedidos/{pedido_id}
+Descripción: Obtener pedido específico con detalles completos.
+Headers: Authorization: Bearer jwt_token
+
+34. PUT https://proyect-mercado-backend.fly.dev/pedidos/{pedido_id}/estado
+Descripción: Cambiar estado del pedido (solo vendedor o admin).
+Headers: Authorization: Bearer jwt_token
+Body:
+{
+  "estado": "confirmado",
+  "notas_vendedor": "Pedido confirmado, en preparación",
+  "hora_estimada_entrega": "2024-01-01T18:00:00Z"
+}
+
+Estados válidos: pendiente, confirmado, en_preparacion, en_ruta, entregado, cancelado, reembolsado
+
+35. DELETE https://proyect-mercado-backend.fly.dev/pedidos/{pedido_id}
+Descripción: Eliminar pedido (solo pendientes).
+Headers: Authorization: Bearer jwt_token
+
+PAGOS
+
+36. POST https://proyect-mercado-backend.fly.dev/pagos
+Descripción: Registrar un pago para un pedido.
+Headers: Authorization: Bearer jwt_token
+Body:
+{
+  "pedido_id": "uuid_del_pedido",
+  "transaccion_id": "txn_123456789",
+  "monto": 205.50,
+  "moneda": "BOB",
+  "metodo_pago": "codigo_qr",
+  "estado": "completado",
+  "procesado_por": "Sistema Automático",
+  "notas": "Pago procesado exitosamente"
+}
+Métodos de pago válidos: codigo_qr, transferencia_bancaria, efectivo_contra_entrega, tarjeta, billetera_movil
+
+37. GET https://proyect-mercado-backend.fly.dev/pagos
+Descripción: Listar todos los pagos.
+Headers: Authorization: Bearer jwt_token
+
+38. GET https://proyect-mercado-backend.fly.dev/pagos/{pago_id}
+Descripción: Obtener pago específico.
+Headers: Authorization: Bearer jwt_token
+
+39. GET https://proyect-mercado-backend.fly.dev/pagos/pedido/{pedido_id}
+Descripción: Obtener pago de un pedido específico.
+Headers: Authorization: Bearer jwt_token
+
+40. PUT https://proyect-mercado-backend.fly.dev/pagos/{pago_id}/estado
+Descripción: Actualizar estado del pago.
+Headers: Authorization: Bearer jwt_token
+Body:
+	{
+  "estado": "completado"
+}
+
+41. GET https://proyect-mercado-backend.fly.dev/pagos/estado/{estado}
+Descripción: Listar pagos por estado.
+Headers: Authorization: Bearer jwt_token
+
+42. GET https://proyect-mercado-backend.fly.dev/pagos/metodo/{metodo_pago}
+Descripción: Listar pagos por método de pago.
+Headers: Authorization: Bearer jwt_token
+
+CARRITO DE COMPRAS
+
+43. POST https://proyect-mercado-backend.fly.dev/carrito/calcular
+Descripción: Calcular totales del carrito.
+Headers: Authorization: Bearer jwt_token
+Body:
+	{
+  "items": [
+    {
+      "producto_id": "uuid_del_producto",
+      "cantidad": 2
+    }
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+44. POST https://proyect-mercado-backend.fly.dev/carrito/validar-stock
+Descripción: Validar disponibilidad de stock.
+Headers: Authorization: Bearer jwt_token
+Body:
+	{
+  "items": [
+    {
+      "producto_id": "uuid_del_producto",
+      "cantidad": 2
+    }
+  ]
+}
+
+45. GET https://proyect-mercado-backend.fly.dev/carrito/calcular-envio?subtotal=200&zona_id=uuid
+Descripción: Calcular costo de envío.
+Headers: Authorization: Bearer jwt_token
+
+46. GET https://proyect-mercado-backend.fly.dev/carrito/calcular-descuentos?subtotal=200&codigo_descuento=DESCUENTO10
+Descripción: Calcular descuentos aplicables.
+Headers: Authorization: Bearer jwt_token
+
+47. POST https://proyect-mercado-backend.fly.dev/carrito/resumen-completo
+Descripción: Resumen completo del carrito con envío y descuentos.
+Headers: Authorization: Bearer jwt_token
+Body:
+	{
+  "items": [
+    {
+      "producto_id": "uuid_del_producto",
+      "cantidad": 2
+    }
+  ],
+  "zona_id": "uuid_de_la_zona",
+  "codigo_descuento": "DESCUENTO10"
+}
+
+
+
+
+
+
+RESENIAS 
+48. POST https://proyect-mercado-backend.fly.dev/resenas
+Descripción: Crear una nueva reseña (requiere JWT, solo comprador del pedido)
+Body:
+	{
+  “pedido_id": "uuid_del_pedido",
+  "comprador_id": "uuid_del_comprador",
+  "vendedor_id": "uuid_del_vendedor",
+  "calificacion": 5,
+  "comentario": "Excelente servicio y productos de calidad"
+}
+
+49. GET https://proyect-mercado-backend.fly.dev/resenas
+Descripción: Listar todas las reseñas (requiere JWT)
+
+50. GET https://proyect-mercado-backend.fly.dev/resenas/buscar
+Descripción: Buscar reseñas con filtros (requiere JWT)
+Query Params:
+vendedor_id (opcional)
+comprador_id (opcional)
+calificacion (opcional, 1-5)
+limit (opcional, default: 20)
+offset (opcional, default: 0)
+51. GET https://proyect-mercado-backend.fly.dev/resenas/vendedor/:vendedor_id
+Descripción: Listar reseñas de un vendedor específico (requiere JWT)
+
+52. GET https://proyect-mercado-backend.fly.dev/resenas/comprador/:comprador_id
+Descripción: Listar reseñas de un comprador específico (requiere JWT, solo propio o admin)
+
+53. GET https://proyect-mercado-backend.fly.dev/resenas/pendientes/:comprador_id
+Descripción: Listar pedidos entregados sin reseña (requiere JWT, solo propio o admin)
+
+54. GET https://proyect-mercado-backend.fly.dev/resenas/:resena_id
+Descripción: Obtener reseña por ID (requiere JWT)
+
+55. PUT https://proyect-mercado-backend.fly.dev/resenas/:resena_id/responder
+Descripción: Responder a una reseña (requiere JWT, solo vendedor o admin)
+Body:
+{
+  "respuesta_vendedor": "Gracias por tu comentario, nos esforzamos por dar el mejor servicio"
+}
+
+
+56. PUT https://proyect-mercado-backend.fly.dev/resenas/:resena_id
+Descripción: Actualizar reseña (requiere JWT, solo comprador o admin)
+Body:
+{
+  "calificacion": 4,
+  "comentario": "Muy buen servicio, actualizado mi comentario"
+}
+
+57. DELETE https://proyect-mercado-backend.fly.dev/resenas/:resena_id
+Descripción: Eliminar reseña (requiere JWT, solo comprador o admin)
+
+58. GET https://proyect-mercado-backend.fly.dev/vendedores/:vendedor_id/calificacion
+Descripción: Obtener calificación detallada de un vendedor
+Response:
+	{
+  "calificacion": {
+    "calificacion_promedio": 4.5,
+    "total_resenas": 25,
+    "distribucion": {
+      "1": 2,
+      "2": 1,
+      "3": 3,
+      "4": 8,
+      "5": 11
+    }
+  }
+}
+
+
+CHAT EN TIEMPO REAL
+
+59. POST https://proyect-mercado-backend.fly.dev/conversaciones
+Descripción: Crear una nueva conversación (requiere JWT)
+Body:
+{
+  "pedido_id": "uuid_del_pedido",
+  "tipo_conversacion": "directa",
+  "participantes": ["uuid_usuario1", "uuid_usuario2"]
+}
+
+60. GET https://proyect-mercado-backend.fly.dev/conversaciones
+Descripción: Listar todas las conversaciones (requiere JWT)
+
+
+61. GET https://proyect-mercado-backend.fly.dev/conversaciones/buscar
+Descripción: Buscar conversaciones con filtros (requiere JWT)
+Query Params:
+pedido_id (opcional)
+tipo_conversacion (opcional)
+estado (opcional)
+limit (opcional, default: 20)
+offset (opcional, default: 0)
+
+62. GET https://proyect-mercado-backend.fly.dev/conversaciones/usuario/:usuario_id
+Descripción: Listar conversaciones de un usuario (requiere JWT, solo propio o admin)
+
+63. GET https://proyect-mercado-backend.fly.dev/conversaciones/:conversacion_id
+Descripción: Obtener conversación por ID (requiere JWT)
+
+64. PUT https://proyect-mercado-backend.fly.dev/conversaciones/:conversacion_id/estado
+Descripción: Cambiar estado de conversación (requiere JWT)
+Body:
+{
+  "estado": "archivada"
+}
+
+65. POST https://proyect-mercado-backend.fly.dev/conversaciones/:conversacion_id/participantes
+Descripción: Agregar participante a conversación (requiere JWT)
+Body:
+{
+  "usuario_id": "uuid_del_usuario"
+}
+
+66. DELETE https://proyect-mercado-backend.fly.dev/conversaciones/:conversacion_id/participantes/:usuario_id
+Descripción: Remover participante de conversación (requiere JWT)
+
+67. POST https://proyect-mercado-backend.fly.dev/mensajes
+Descripción: Crear un nuevo mensaje (requiere JWT)
+Body:
+{
+  "conversacion_id": "uuid_de_la_conversacion",
+  "contenido": "Hola, ¿cómo estás?",
+  "tipo_mensaje": "texto",
+  "url_archivo": "https://ejemplo.com/imagen.jpg"
+}
+
+68. GET https://proyect-mercado-backend.fly.dev/mensajes/conversacion/:conversacion_id
+Descripción: Listar mensajes de una conversación (requiere JWT)
+
+69. GET https://proyect-mercado-backend.fly.dev/mensajes/:mensaje_id
+Descripción: Obtener mensaje por ID (requiere JWT)
+
+70. PUT https://proyect-mercado-backend.fly.dev/mensajes/conversacion/:conversacion_id/leer
+Descripción: Marcar mensajes como leídos (requiere JWT)
+
+71. GET https://proyect-mercado-backend.fly.dev/mensajes/usuario/:usuario_id/no-leidos
+Descripción: Obtener mensajes no leídos de un usuario (requiere JWT, solo propio o admin)
+
+72. DELETE https://proyect-mercado-backend.fly.dev/mensajes/:mensaje_id
+Descripción: Eliminar mensaje (requiere JWT, solo remitente)
+
+WEBSOCKET EVENTS
+Conexión:
+const socket = io('https://proyect-mercado-backend.fly.dev', {
+  auth: {
+    token: 'jwt_token',
+    usuario_id: 'uuid_del_usuario'
+  }
+});
+	ZONAS DE ENTREGA
+
+73. POST https://proyect-mercado-backend.fly.dev/zonas-entrega
+Descripción: Crear una nueva zona de entrega (requiere JWT)
+Body:
+{
+  "nombre": "Zona Centro",
+  "descripcion": "Zona del centro de la ciudad",
+  "coordenadas_poligono": "{\"type\":\"Polygon\",\"coordinates\":[[[...]]]}",
+  "tarifa_envio": 15.00,
+  "esta_activa": true
+}
+
+74. GET https://proyect-mercado-backend.fly.dev/zonas-entrega
+Descripción: Listar todas las zonas de entrega
+
+75. GET https://proyect-mercado-backend.fly.dev/zonas-entrega/activas
+Descripción: Listar solo zonas activas
+
+
+76. GET https://proyect-mercado-backend.fly.dev/zonas-entrega/:zona_id
+Descripción: Obtener zona por ID
+
+77. PUT https://proyect-mercado-backend.fly.dev/zonas-entrega/:zona_id
+Descripción: Actualizar zona de entrega (requiere JWT)
+Body:
+{
+  "nombre": "Zona Centro Actualizada",
+  "tarifa_envio": 20.00
+}
+
+78. DELETE https://proyect-mercado-backend.fly.dev/zonas-entrega/:zona_id
+Descripción: Eliminar zona de entrega (requiere JWT)
+
+79. POST https://proyect-mercado-backend.fly.dev/zonas-entrega/calcular-tarifa
+Descripción: Calcular tarifa de envío automáticamente
+Body:
+{
+  "latitud_origen": -16.4897,
+  "longitud_origen": -68.1193,
+  "latitud_destino": -16.5000,
+  "longitud_destino": -68.1300,
+  "peso_total_g": 1500,
+  "zona_id": "uuid_de_la_zona"
+}
+
+80. POST https://proyect-mercado-backend.fly.dev/zonas-entrega/vendedores/:vendedor_id/asignar-zona
+Descripción: Asignar vendedor a una zona (requiere JWT)
+Body:
+{
+  "zona_id": "uuid_de_la_zona"
+}
+
+81. DELETE https://proyect-mercado-backend.fly.dev/zonas-entrega/vendedores/:vendedor_id/asignar-zona
+Descripción: Remover vendedor de una zona (requiere JWT)
+
+82. GET https://proyect-mercado-backend.fly.dev/zonas-entrega/:zona_id/vendedores
+Descripción: Listar vendedores asignados a una zona
+
+
+
+83. POST https://proyect-mercado-backend.fly.dev/zonas-entrega/vendedores/:vendedor_id/optimizar-ruta
+Descripción: Optimizar ruta para un vendedor (requiere JWT)
+Body:
+{
+  "pedidos_ids": ["uuid_pedido1", "uuid_pedido2", "uuid_pedido3"]
+}
+
+84. GET https://proyect-mercado-backend.fly.dev/zonas-entrega/buscar-por-coordenadas
+Descripción: Encontrar zona por coordenadas
+Query Params:
+latitud - Latitud del punto
+longitud - Longitud del punto
+
