@@ -8,8 +8,10 @@ import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 import Navbar from '@/components/layout/Navbar';
 import { VALIDATION } from '@/constants';
+import CloudinaryService from '@/services/cloudinary';
 import { 
   ArrowLeftIcon,
   UserCircleIcon,
@@ -36,6 +38,7 @@ const editProfileSchema = z.object({
     .string()
     .min(1, 'El número de teléfono es requerido')
     .regex(VALIDATION.PHONE_REGEX, 'El número de teléfono no es válido'),
+  avatar_url: z.string().optional(),
 });
 
 type EditProfileData = z.infer<typeof editProfileSchema>;
@@ -45,6 +48,7 @@ export default function EditProfilePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>(user?.avatar_url || '');
 
   // Redirigir si no está autenticado
   React.useEffect(() => {
@@ -58,12 +62,14 @@ export default function EditProfilePage() {
     handleSubmit,
     formState: { errors, isDirty },
     reset,
+    setValue,
   } = useForm<EditProfileData>({
     resolver: zodResolver(editProfileSchema),
     defaultValues: {
       nombre: user?.nombre || '',
       apellido: user?.apellido || '',
       numero_telefono: user?.numero_telefono || '',
+      avatar_url: user?.avatar_url || '',
     },
   });
 
@@ -104,45 +110,55 @@ export default function EditProfilePage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="py-8">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center mb-4">
-            <button
-              onClick={() => router.push('/profile')}
-              className="mr-4 p-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-            </button>
-            <h1 className="text-3xl font-bold text-gray-900">Editar Perfil</h1>
-          </div>
-          <p className="text-gray-600">
-            Actualiza tu información personal
-          </p>
-        </div>
-
-        {/* Success Message */}
-        {isSuccess && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-            <div className="flex items-center">
-              <CheckIcon className="w-5 h-5 text-green-600 mr-2" />
-              <p className="text-green-800 font-medium">
-                Perfil actualizado exitosamente
-              </p>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center mb-4">
+              <button
+                onClick={() => router.push('/profile')}
+                className="mr-4 p-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <ArrowLeftIcon className="w-5 h-5" />
+              </button>
+              <h1 className="text-3xl font-bold text-gray-900">Editar Perfil</h1>
             </div>
-            <p className="text-green-700 text-sm mt-1">
-              Redirigiendo al perfil...
+            <p className="text-gray-600">
+              Actualiza tu información personal
             </p>
           </div>
-        )}
 
-        {/* Profile Card */}
+          {/* Success Message */}
+          {isSuccess && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="flex items-center">
+                <CheckIcon className="w-5 h-5 text-green-600 mr-2" />
+                <p className="text-green-800 font-medium">
+                  Perfil actualizado exitosamente
+                </p>
+              </div>
+              <p className="text-green-700 text-sm mt-1">
+                Redirigiendo al perfil...
+              </p>
+            </div>
+          )}
+
+                  {/* Profile Card */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white text-xl font-bold">
-                {user.nombre?.charAt(0).toUpperCase()}
-              </span>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
+              {avatarUrl ? (
+                <img
+                  src={CloudinaryService.getThumbnailUrl(avatarUrl, 80)}
+                  alt={`${user.nombre} ${user.apellido}`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                  <span className="text-white text-xl font-bold">
+                    {user.nombre?.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
             </div>
             <h2 className="text-xl font-semibold text-gray-900">
               {user.nombre} {user.apellido}
@@ -151,15 +167,38 @@ export default function EditProfilePage() {
           </div>
         </div>
 
-        {/* Edit Form */}
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
-              Información Personal
-            </h3>
-          </div>
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+          {/* Edit Form */}
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">
+                Información Personal
+              </h3>
+            </div>
+            
+                      <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+            {/* Avatar Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Foto de Perfil
+              </label>
+              <ImageUpload
+                onUpload={(response) => {
+                  setAvatarUrl(response.public_id);
+                  setValue('avatar_url', response.public_id);
+                }}
+                onError={(error) => console.error('Error uploading avatar:', error)}
+                multiple={false}
+                maxFiles={1}
+                folder="avatars"
+                maxSize={5}
+                showPreview={false}
+                className="max-w-xs"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Recomendado: imagen cuadrada de al menos 200x200 píxeles
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
                 label="Nombre"
@@ -176,69 +215,70 @@ export default function EditProfilePage() {
               />
             </div>
 
-            <Input
-              label="Email"
-              type="email"
-              value={user.email}
-              disabled
-              helperText="El email no se puede cambiar"
-            />
+              <Input
+                label="Email"
+                type="email"
+                value={user.email}
+                disabled
+                helperText="El email no se puede cambiar"
+              />
 
-            <Input
-              label="Número de Teléfono"
-              type="tel"
-              placeholder="71234567"
-              error={errors.numero_telefono?.message}
-              {...register('numero_telefono')}
-            />
+              <Input
+                label="Número de Teléfono"
+                type="tel"
+                placeholder="71234567"
+                error={errors.numero_telefono?.message}
+                {...register('numero_telefono')}
+              />
 
-            {/* Form Actions */}
-            <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCancel}
-                disabled={isLoading}
-              >
-                <XMarkIcon className="w-4 h-4 mr-2" />
-                Cancelar
+              {/* Form Actions */}
+              <div className="flex items-center justify-end space-x-4 pt-6 border-t border-gray-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={isLoading}
+                >
+                  <XMarkIcon className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+                
+                <Button
+                  type="submit"
+                  loading={isLoading}
+                  disabled={isLoading || !isDirty}
+                >
+                  <CheckIcon className="w-4 h-4 mr-2" />
+                  Guardar Cambios
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {/* Additional Options */}
+          <div className="mt-6 bg-white rounded-lg shadow-md">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">
+                Otras Opciones
+              </h3>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <Button variant="outline" className="w-full justify-start">
+                <ShieldCheckIcon className="w-4 h-4 mr-2" />
+                Cambiar Contraseña
               </Button>
               
-              <Button
-                type="submit"
-                loading={isLoading}
-                disabled={isLoading || !isDirty}
-              >
-                <CheckIcon className="w-4 h-4 mr-2" />
-                Guardar Cambios
+              <Button variant="outline" className="w-full justify-start">
+                <MapPinIcon className="w-4 h-4 mr-2" />
+                Gestionar Direcciones
+              </Button>
+              
+              <Button variant="outline" className="w-full justify-start">
+                <CogIcon className="w-4 h-4 mr-2" />
+                Configuración de Notificaciones
               </Button>
             </div>
-          </form>
-        </div>
-
-        {/* Additional Options */}
-        <div className="mt-6 bg-white rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
-              Otras Opciones
-            </h3>
-          </div>
-          
-          <div className="p-6 space-y-4">
-            <Button variant="outline" className="w-full justify-start">
-              <ShieldCheckIcon className="w-4 h-4 mr-2" />
-              Cambiar Contraseña
-            </Button>
-            
-            <Button variant="outline" className="w-full justify-start">
-              <MapPinIcon className="w-4 h-4 mr-2" />
-              Gestionar Direcciones
-            </Button>
-            
-            <Button variant="outline" className="w-full justify-start">
-              <CogIcon className="w-4 h-4 mr-2" />
-              Configuración de Notificaciones
-            </Button>
           </div>
         </div>
       </div>

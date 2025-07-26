@@ -8,6 +8,7 @@ export interface Usuario {
   numero_telefono: string;
   rol: 'comprador' | 'vendedor' | 'admin' | 'super_admin';
   esta_activo: boolean;
+  avatar_url?: string;
   ultima_sesion_at?: string;
   creado_at: string;
   actualizado_at: string;

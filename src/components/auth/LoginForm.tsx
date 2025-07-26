@@ -85,7 +85,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full bg-black text-white hover:bg-gray-800 border border-black"
             loading={isLoading}
             disabled={isLoading}
           >

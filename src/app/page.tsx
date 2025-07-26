@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/constants';
 import Navbar from '@/components/layout/Navbar';
-import ApiTest from '@/components/debug/ApiTest';
+
 
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -79,10 +79,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* API Test Section - Temporal */}
-        <div className="mt-16">
-          <ApiTest />
-        </div>
+        
 
         {/* Features Section */}
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">

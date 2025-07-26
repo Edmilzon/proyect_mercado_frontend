@@ -15,6 +15,7 @@ import {
   CogIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
+import CloudinaryService from '@/services/cloudinary';
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -88,10 +89,20 @@ export const Navbar: React.FC = () => {
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-2 transition-colors duration-200"
                 >
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">
-                      {user?.nombre?.charAt(0).toUpperCase()}
-                    </span>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
+                    {user?.avatar_url ? (
+                      <img
+                        src={CloudinaryService.getThumbnailUrl(user.avatar_url, 32)}
+                        alt={`${user.nombre} ${user.apellido}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {user?.nombre?.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <span className="hidden sm:block text-sm font-medium">
                     {user?.nombre}
@@ -134,6 +145,17 @@ export const Navbar: React.FC = () => {
                       Editar Perfil
                     </Link>
                     
+                    {user?.rol === 'vendedor' && (
+                      <Link
+                        href="/seller/dashboard"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                      >
+                        <ShoppingBagIcon className="w-4 h-4 mr-2" />
+                        Panel Vendedor
+                      </Link>
+                    )}
+                    
                     <div className="border-t border-gray-100">
                       <button
                         onClick={handleLogout}
@@ -149,12 +171,19 @@ export const Navbar: React.FC = () => {
             ) : (
               <div className="flex items-center space-x-2">
                 <Link href="/login">
-                  <Button variant="outline" size="sm">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="border-black text-black hover:bg-black hover:text-white"
+                  >
                     Iniciar Sesión
                   </Button>
                 </Link>
                 <Link href="/login?register=true">
-                  <Button size="sm">
+                  <Button 
+                    size="sm"
+                    className="bg-black text-white hover:bg-gray-800 border border-black"
+                  >
                     Registrarse
                   </Button>
                 </Link>
