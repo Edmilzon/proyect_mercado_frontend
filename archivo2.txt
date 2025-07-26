@@ -1,7 +1,0 @@
-Este es el primer archivo de prueba.
-Contiene algunas líneas de texto para demostrar
-la funcionalidad del comparador de archivos.
-Línea 4: Esta línea es DIFERENTE en el segundo archivo.
-Línea 5: Esta línea es idéntica.
-Línea 6: Otra línea idéntica.
-Línea 7: Última línea del archivo. 
