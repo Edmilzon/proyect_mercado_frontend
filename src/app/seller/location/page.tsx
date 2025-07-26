@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import Navbar from '@/components/layout/Navbar';
 import { sellerService } from '@/services/seller';
+import { formatCoordinate } from '@/utils/cn';
 import { 
   ArrowLeftIcon,
   MapPinIcon,
@@ -182,7 +183,7 @@ export default function LocationPage() {
                     </label>
                     <div className="flex items-center p-3 bg-gray-50 rounded-md">
                       <MapPinIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <span className="text-gray-900">{currentLocation.latitud.toFixed(6)}</span>
+                                              <span className="text-gray-900">{formatCoordinate(currentLocation.latitud, 6)}</span>
                     </div>
                   </div>
                   
@@ -192,7 +193,7 @@ export default function LocationPage() {
                     </label>
                     <div className="flex items-center p-3 bg-gray-50 rounded-md">
                       <MapPinIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <span className="text-gray-900">{currentLocation.longitud.toFixed(6)}</span>
+                                              <span className="text-gray-900">{formatCoordinate(currentLocation.longitud, 6)}</span>
                     </div>
                   </div>
                 </div>
@@ -204,7 +205,7 @@ export default function LocationPage() {
                     </label>
                     <div className="flex items-center p-3 bg-gray-50 rounded-md">
                       <MapPinIcon className="w-5 h-5 text-gray-400 mr-3" />
-                      <span className="text-gray-900">±{currentLocation.precision_m.toFixed(1)} metros</span>
+                                              <span className="text-gray-900">±{formatCoordinate(currentLocation.precision_m, 1)} metros</span>
                     </div>
                   </div>
                   
@@ -262,10 +263,10 @@ export default function LocationPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {location.latitud.toFixed(6)}, {location.longitud.toFixed(6)}
+                          {formatCoordinate(location.latitud, 6)}, {formatCoordinate(location.longitud, 6)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Precisión: ±{location.precision_m.toFixed(1)}m
+                          Precisión: ±{formatCoordinate(location.precision_m, 1)}m
                         </p>
                       </div>
                     </div>

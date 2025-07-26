@@ -15,7 +15,7 @@ import {
   CogIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
-import CloudinaryService from '@/services/cloudinary';
+
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -90,19 +90,11 @@ export const Navbar: React.FC = () => {
                   className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full p-2 transition-colors duration-200"
                 >
                   <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
-                    {user?.avatar_url ? (
-                      <img
-                        src={CloudinaryService.getThumbnailUrl(user.avatar_url, 32)}
-                        alt={`${user.nombre} ${user.apellido}`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                        <span className="text-white text-sm font-medium">
-                          {user?.nombre?.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+                    <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {user?.nombre?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
                   </div>
                   <span className="hidden sm:block text-sm font-medium">
                     {user?.nombre}

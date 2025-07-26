@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import Navbar from '@/components/layout/Navbar';
-import CloudinaryService from '@/services/cloudinary';
+import { productsService } from '@/services/products';
+import { categoriesService } from '@/services/categories';
 import { 
   ArrowLeftIcon,
   PlusIcon,
@@ -19,28 +20,9 @@ import {
   TagIcon
 } from '@heroicons/react/24/outline';
 
-interface Producto {
-  producto_id: string;
-  nombre: string;
-  descripcion: string;
-  precio_base: number;
-  precio_actual: number;
-  categoria_id: string;
-  cantidad_stock: number;
-  url_imagen_principal: string;
-  imagenes: string[];
-  esta_activo: boolean;
-  sku: string;
-  peso_g: number;
-  creado_at: string;
-  actualizado_at: string;
-}
+import { Producto, CategoriaProducto } from '@/types';
 
-interface Categoria {
-  categoria_id: string;
-  nombre: string;
-  descripcion: string;
-}
+type Categoria = CategoriaProducto;
 
 export default function ProductsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -62,6 +44,7 @@ export default function ProductsPage() {
     peso_g: 0,
     esta_activo: true
   });
+  const [uploadedImages, setUploadedImages] = useState<any[]>([]);
 
   // Redirigir si no está autenticado o no es vendedor
   React.useEffect(() => {
@@ -81,39 +64,21 @@ export default function ProductsPage() {
 
   const loadData = async () => {
     try {
-      // Aquí irían las llamadas a las APIs
-      // const productsResponse = await fetch('/api/productos/vendedor');
-      // const categoriesResponse = await fetch('/api/categorias');
+      setIsLoading(true);
       
-      // Simulación de datos
-      setProducts([
-        {
-          producto_id: '1',
-          nombre: 'Producto de Ejemplo',
-          descripcion: 'Descripción del producto',
-          precio_base: 100,
-          precio_actual: 90,
-          categoria_id: 'cat-1',
-          cantidad_stock: 50,
-          url_imagen_principal: '',
-          imagenes: [],
-          esta_activo: true,
-          sku: 'SKU001',
-          peso_g: 500,
-          creado_at: '2024-01-01T00:00:00Z',
-          actualizado_at: '2024-01-01T00:00:00Z'
-        }
+      // Cargar productos y categorías desde las APIs
+      const [productsData, categoriesData] = await Promise.all([
+        productsService.getProducts(),
+        categoriesService.getCategories()
       ]);
-
-      setCategories([
-        {
-          categoria_id: 'cat-1',
-          nombre: 'Electrónicos',
-          descripcion: 'Productos electrónicos'
-        }
-      ]);
+      
+      setProducts(productsData);
+      setCategories(categoriesData);
     } catch (error) {
       console.error('Error loading data:', error);
+      // Si hay error, mostrar arrays vacíos
+      setProducts([]);
+      setCategories([]);
     } finally {
       setIsLoading(false);
     }
@@ -124,23 +89,19 @@ export default function ProductsPage() {
     try {
       if (editingId) {
         // Actualizar producto
-        // await updateProduct(editingId, formData);
+        const updatedProduct = await productsService.updateProduct(editingId, formData);
         setProducts(prev => prev.map(prod => 
           prod.producto_id === editingId 
-            ? { ...prod, ...formData }
+            ? updatedProduct
             : prod
         ));
         setEditingId(null);
       } else {
         // Crear producto
-        // await createProduct(formData);
-        const newProduct: Producto = {
-          producto_id: Date.now().toString(),
+        const newProduct = await productsService.createProduct({
           ...formData,
           sku: `SKU${Date.now()}`,
-          creado_at: new Date().toISOString(),
-          actualizado_at: new Date().toISOString()
-        };
+        });
         setProducts(prev => [...prev, newProduct]);
         setIsAdding(false);
       }
@@ -154,7 +115,7 @@ export default function ProductsPage() {
   const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
       try {
-        // await deleteProduct(id);
+        await productsService.deleteProduct(id);
         setProducts(prev => prev.filter(prod => prod.producto_id !== id));
       } catch (error) {
         console.error('Error deleting product:', error);
@@ -199,6 +160,7 @@ export default function ProductsPage() {
       ...prev,
       url_imagen_principal: response.public_id
     }));
+    setUploadedImages(prev => [response]);
   };
 
   const handleMultipleImageUpload = (response: any) => {
@@ -206,6 +168,15 @@ export default function ProductsPage() {
       ...prev,
       imagenes: [...prev.imagenes, response.public_id]
     }));
+    setUploadedImages(prev => [...prev, response]);
+  };
+
+  const handleRemoveImage = (publicId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      imagenes: prev.imagenes.filter(id => id !== publicId)
+    }));
+    setUploadedImages(prev => prev.filter(img => img.public_id !== publicId));
   };
 
   if (!user || user.rol !== 'vendedor') {
@@ -353,15 +324,17 @@ export default function ProductsPage() {
                   <ImageUpload
                     onUpload={handleImageUpload}
                     onError={(error) => console.error('Error uploading image:', error)}
+                    onRemove={handleRemoveImage}
                     multiple={false}
                     maxFiles={1}
                     folder="productos"
                     maxSize={5}
                     showPreview={true}
+                    uploadedImages={uploadedImages.filter(img => img.public_id === formData.url_imagen_principal)}
                   />
                   {formData.url_imagen_principal && (
                     <p className="text-xs text-green-600 mt-1">
-                      ✓ Imagen subida correctamente
+                      ✓ Imagen principal subida correctamente
                     </p>
                   )}
                 </div>
@@ -373,11 +346,13 @@ export default function ProductsPage() {
                   <ImageUpload
                     onUpload={handleMultipleImageUpload}
                     onError={(error) => console.error('Error uploading images:', error)}
+                    onRemove={handleRemoveImage}
                     multiple={true}
                     maxFiles={5}
                     folder="productos"
                     maxSize={5}
                     showPreview={true}
+                    uploadedImages={uploadedImages.filter(img => formData.imagenes.includes(img.public_id))}
                   />
                   {formData.imagenes.length > 0 && (
                     <p className="text-xs text-green-600 mt-1">
@@ -442,7 +417,7 @@ export default function ProductsPage() {
                     <div className="h-48 bg-gray-200 flex items-center justify-center">
                       {product.url_imagen_principal ? (
                         <img
-                          src={CloudinaryService.getThumbnailUrl(product.url_imagen_principal, 300)}
+                          src={product.url_imagen_principal}
                           alt={product.nombre}
                           className="w-full h-full object-cover"
                         />

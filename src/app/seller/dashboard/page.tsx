@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import Navbar from '@/components/layout/Navbar';
 import { sellerService } from '@/services/seller';
+import { formatCoordinate } from '@/utils/cn';
 import { 
   UserCircleIcon,
   MapPinIcon,
@@ -64,6 +65,18 @@ export default function SellerDashboardPage() {
       setStats(statsData);
     } catch (error) {
       console.error('Error loading seller data:', error);
+      // Si hay error, mostrar mensaje pero no bloquear la página
+      setSellerData({
+        vendedor_id: user?.usuario_id || '',
+        numero_identificacion: '',
+        estado_onboarding: 'pendiente',
+        calificacion_promedio: 0,
+        total_resenas: 0,
+        tasa_comision: 0.05,
+        creado_at: new Date().toISOString(),
+        actualizado_at: new Date().toISOString(),
+        usuario: undefined
+      });
     } finally {
       setIsLoading(false);
     }
@@ -311,7 +324,7 @@ export default function SellerDashboardPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">Coordenadas:</span>
                       <span className="text-sm font-medium text-gray-900">
-                        {sellerData.latitud_actual?.toFixed(4) || 'N/A'}, {sellerData.longitud_actual?.toFixed(4) || 'N/A'}
+                        {formatCoordinate(sellerData.latitud_actual, 4)}, {formatCoordinate(sellerData.longitud_actual, 4)}
                       </span>
                     </div>
                     

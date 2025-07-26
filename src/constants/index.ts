@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
   // Vendedores
   SELLERS: {
     BASE: '/vendedores',
+    BY_ID: (id: string) => `/vendedores/${id}`,
     LOCATIONS: '/vendedores/ubicaciones',
     LOCATIONS_BY_ID: (id: string) => `/vendedores/${id}/ubicaciones`,
   },

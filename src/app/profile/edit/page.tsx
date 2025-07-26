@@ -8,10 +8,8 @@ import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { ImageUpload } from '@/components/ui/ImageUpload';
 import Navbar from '@/components/layout/Navbar';
 import { VALIDATION } from '@/constants';
-import CloudinaryService from '@/services/cloudinary';
 import { 
   ArrowLeftIcon,
   UserCircleIcon,
@@ -38,7 +36,6 @@ const editProfileSchema = z.object({
     .string()
     .min(1, 'El número de teléfono es requerido')
     .regex(VALIDATION.PHONE_REGEX, 'El número de teléfono no es válido'),
-  avatar_url: z.string().optional(),
 });
 
 type EditProfileData = z.infer<typeof editProfileSchema>;
@@ -48,7 +45,6 @@ export default function EditProfilePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string>(user?.avatar_url || '');
 
   // Redirigir si no está autenticado
   React.useEffect(() => {
@@ -69,7 +65,6 @@ export default function EditProfilePage() {
       nombre: user?.nombre || '',
       apellido: user?.apellido || '',
       numero_telefono: user?.numero_telefono || '',
-      avatar_url: user?.avatar_url || '',
     },
   });
 
@@ -146,19 +141,11 @@ export default function EditProfilePage() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="text-center mb-6">
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-              {avatarUrl ? (
-                <img
-                  src={CloudinaryService.getThumbnailUrl(avatarUrl, 80)}
-                  alt={`${user.nombre} ${user.apellido}`}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                  <span className="text-white text-xl font-bold">
-                    {user.nombre?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-              )}
+              <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                <span className="text-white text-xl font-bold">
+                  {user.nombre?.charAt(0).toUpperCase()}
+                </span>
+              </div>
             </div>
             <h2 className="text-xl font-semibold text-gray-900">
               {user.nombre} {user.apellido}
@@ -176,29 +163,6 @@ export default function EditProfilePage() {
             </div>
             
                       <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
-            {/* Avatar Upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Foto de Perfil
-              </label>
-              <ImageUpload
-                onUpload={(response) => {
-                  setAvatarUrl(response.public_id);
-                  setValue('avatar_url', response.public_id);
-                }}
-                onError={(error) => console.error('Error uploading avatar:', error)}
-                multiple={false}
-                maxFiles={1}
-                folder="avatars"
-                maxSize={5}
-                showPreview={false}
-                className="max-w-xs"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Recomendado: imagen cuadrada de al menos 200x200 píxeles
-              </p>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
                 label="Nombre"

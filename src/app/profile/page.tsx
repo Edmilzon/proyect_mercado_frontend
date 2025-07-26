@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Navbar from '@/components/layout/Navbar';
-import CloudinaryService from '@/services/cloudinary';
+
 import { 
   UserCircleIcon,
   EnvelopeIcon,
@@ -84,19 +84,11 @@ export default function ProfilePage() {
               <div className="bg-white rounded-lg shadow-md p-6">
                               <div className="text-center">
                 <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden">
-                  {user.avatar_url ? (
-                    <img
-                      src={CloudinaryService.getThumbnailUrl(user.avatar_url, 96)}
-                      alt={`${user.nombre} ${user.apellido}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                      <span className="text-white text-2xl font-bold">
-                        {user.nombre?.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                  <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                    <span className="text-white text-2xl font-bold">
+                      {user.nombre?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
                 </div>
                   
                   <h2 className="text-xl font-semibold text-gray-900">

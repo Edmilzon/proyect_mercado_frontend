@@ -13,6 +13,7 @@ import CloudinaryService, { CloudinaryResponse } from '@/services/cloudinary';
 interface ImageUploadProps {
   onUpload: (response: CloudinaryResponse) => void;
   onError?: (error: string) => void;
+  onRemove?: (publicId: string) => void;
   multiple?: boolean;
   maxFiles?: number;
   folder?: string;
@@ -22,11 +23,13 @@ interface ImageUploadProps {
   maxSize?: number; // en MB
   showPreview?: boolean;
   aspectRatio?: number; // para recorte
+  uploadedImages?: CloudinaryResponse[]; // Para mostrar imágenes ya subidas
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
   onUpload,
   onError,
+  onRemove,
   multiple = false,
   maxFiles = 5,
   folder = 'tienda',
@@ -35,11 +38,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   accept = 'image/*',
   maxSize = 10,
   showPreview = true,
-  aspectRatio
+  aspectRatio,
+  uploadedImages: externalUploadedImages
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<CloudinaryResponse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,7 +115,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         onUpload(response);
       });
 
-      // Limpiar
+      // Guardar imágenes subidas para mostrar preview
+      setUploadedImages(prev => [...prev, ...responses]);
+
+      // Limpiar previews temporales
       setPreviewUrls([]);
       setUploadProgress(0);
       
@@ -233,7 +241,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </div>
       )}
 
-      {/* Previews */}
+      {/* Previews temporales durante carga */}
       {showPreview && previewUrls.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {previewUrls.map((url, index) => (
@@ -251,6 +259,41 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Previews de imágenes ya subidas */}
+      {showPreview && (uploadedImages.length > 0 || externalUploadedImages?.length) && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700">Imágenes subidas:</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {(externalUploadedImages || uploadedImages).map((image, index) => (
+              <div key={index} className="relative group">
+                <img
+                  src={CloudinaryService.getThumbnailUrl(image.public_id, 150)}
+                  alt={`Uploaded ${index + 1}`}
+                  className="w-full h-24 object-cover rounded-md"
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-md flex items-center justify-center">
+                  <button
+                    onClick={() => {
+                      if (onRemove) {
+                        onRemove(image.public_id);
+                      } else {
+                        setUploadedImages(prev => prev.filter((_, i) => i !== index));
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1 rounded-full transition-opacity"
+                  >
+                    <XMarkIcon className="w-3 h-3" />
+                  </button>
+                </div>
+                <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-xs px-1 rounded">
+                  {image.format}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

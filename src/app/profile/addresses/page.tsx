@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import Navbar from '@/components/layout/Navbar';
+import { formatCoordinate } from '@/utils/cn';
 import { addressService } from '@/services/addresses';
 import { 
   ArrowLeftIcon,
@@ -338,7 +339,7 @@ export default function AddressesPage() {
                         <p className="text-gray-600">{address.pais}</p>
                         
                         <div className="mt-2 text-sm text-gray-500">
-                          Coordenadas: {address.latitud.toFixed(4)}, {address.longitud.toFixed(4)}
+                          Coordenadas: {formatCoordinate(address.latitud, 4)}, {formatCoordinate(address.longitud, 4)}
                         </div>
                       </div>
                     </div>
