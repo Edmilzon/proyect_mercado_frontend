@@ -20,7 +20,7 @@ import {
   TagIcon
 } from '@heroicons/react/24/outline';
 
-import { Producto, CategoriaProducto } from '@/types';
+import { Producto, CategoriaProducto, ImagenProducto } from '@/types';
 
 type Categoria = CategoriaProducto;
 
@@ -44,7 +44,7 @@ export default function ProductsPage() {
     peso_g: 0,
     esta_activo: true
   });
-  const [uploadedImages, setUploadedImages] = useState<any[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<unknown[]>([]);
 
   // Redirigir si no está autenticado o no es vendedor
   React.useEffect(() => {
@@ -89,7 +89,8 @@ export default function ProductsPage() {
     try {
       if (editingId) {
         // Actualizar producto
-        const updatedProduct = await productsService.updateProduct(editingId, formData);
+        const { imagenes, ...productData } = formData;
+        const updatedProduct = await productsService.updateProduct(editingId, productData);
         setProducts(prev => prev.map(prod => 
           prod.producto_id === editingId 
             ? updatedProduct
@@ -127,14 +128,14 @@ export default function ProductsPage() {
   const handleEdit = (product: Producto) => {
     setFormData({
       nombre: product.nombre,
-      descripcion: product.descripcion,
+      descripcion: product.descripcion || '',
       precio_base: product.precio_base,
       precio_actual: product.precio_actual,
       categoria_id: product.categoria_id,
       cantidad_stock: product.cantidad_stock,
-      url_imagen_principal: product.url_imagen_principal,
-      imagenes: product.imagenes,
-      peso_g: product.peso_g,
+      url_imagen_principal: product.url_imagen_principal || '',
+      imagenes: product.imagenes?.map(img => img.url_imagen) || [],
+      peso_g: product.peso_g || 0,
       esta_activo: product.esta_activo
     });
     setEditingId(product.producto_id);
@@ -155,18 +156,20 @@ export default function ProductsPage() {
     });
   };
 
-  const handleImageUpload = (response: any) => {
+  const handleImageUpload = (response: unknown) => {
+    const typedResponse = response as { public_id: string };
     setFormData(prev => ({
       ...prev,
-      url_imagen_principal: response.public_id
+      url_imagen_principal: typedResponse.public_id
     }));
     setUploadedImages(prev => [response]);
   };
 
-  const handleMultipleImageUpload = (response: any) => {
+  const handleMultipleImageUpload = (response: unknown) => {
+    const typedResponse = response as { public_id: string };
     setFormData(prev => ({
       ...prev,
-      imagenes: [...prev.imagenes, response.public_id]
+      imagenes: [...prev.imagenes, typedResponse.public_id]
     }));
     setUploadedImages(prev => [...prev, response]);
   };
@@ -176,7 +179,7 @@ export default function ProductsPage() {
       ...prev,
       imagenes: prev.imagenes.filter(id => id !== publicId)
     }));
-    setUploadedImages(prev => prev.filter(img => img.public_id !== publicId));
+    setUploadedImages(prev => prev.filter(img => (img as { public_id: string }).public_id !== publicId));
   };
 
   if (!user || user.rol !== 'vendedor') {
@@ -330,7 +333,7 @@ export default function ProductsPage() {
                     folder="productos"
                     maxSize={5}
                     showPreview={true}
-                    uploadedImages={uploadedImages.filter(img => img.public_id === formData.url_imagen_principal)}
+                    uploadedImages={uploadedImages.filter(img => (img as { public_id: string }).public_id === formData.url_imagen_principal) as any}
                   />
                   {formData.url_imagen_principal && (
                     <p className="text-xs text-green-600 mt-1">
@@ -352,7 +355,7 @@ export default function ProductsPage() {
                     folder="productos"
                     maxSize={5}
                     showPreview={true}
-                    uploadedImages={uploadedImages.filter(img => formData.imagenes.includes(img.public_id))}
+                    uploadedImages={uploadedImages.filter(img => formData.imagenes.includes((img as { public_id: string }).public_id)) as any}
                   />
                   {formData.imagenes.length > 0 && (
                     <p className="text-xs text-green-600 mt-1">

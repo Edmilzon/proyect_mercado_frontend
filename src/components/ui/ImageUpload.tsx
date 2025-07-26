@@ -152,7 +152,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     
     if (fileInputRef.current) {
       fileInputRef.current.files = dataTransfer.files;
-      await handleFileSelect({ target: { files: dataTransfer.files } } as any);
+      await handleFileSelect({ target: { files: dataTransfer.files } } as React.ChangeEvent<HTMLInputElement>);
     }
   };
 

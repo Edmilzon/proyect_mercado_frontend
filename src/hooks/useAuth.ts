@@ -46,10 +46,13 @@ export const useAuth = create<AuthState>()(
             isLoading: false,
             error: null,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error && typeof error === 'object' && 'response' in error 
+            ? (error.response as { data?: { message?: string } })?.data?.message || 'Error al iniciar sesión'
+            : 'Error al iniciar sesión';
           set({
             isLoading: false,
-            error: error.response?.data?.message || 'Error al iniciar sesión',
+            error: errorMessage,
           });
           throw error;
         }
@@ -69,10 +72,13 @@ export const useAuth = create<AuthState>()(
             isLoading: false,
             error: null,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error && typeof error === 'object' && 'response' in error 
+            ? (error.response as { data?: { message?: string } })?.data?.message || 'Error al registrarse'
+            : 'Error al registrarse';
           set({
             isLoading: false,
-            error: error.response?.data?.message || 'Error al registrarse',
+            error: errorMessage,
           });
           throw error;
         }
@@ -103,10 +109,13 @@ export const useAuth = create<AuthState>()(
             isLoading: false,
             error: null,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error && typeof error === 'object' && 'response' in error 
+            ? (error.response as { data?: { message?: string } })?.data?.message || 'Error al obtener perfil'
+            : 'Error al obtener perfil';
           set({
             isLoading: false,
-            error: error.response?.data?.message || 'Error al obtener perfil',
+            error: errorMessage,
             isAuthenticated: false,
           });
         }

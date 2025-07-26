@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/constants';
+import { cartService } from '@/services/cart';
+import { useState as useStateCart, useEffect as useEffectCart } from 'react';
 import { 
   UserCircleIcon, 
   ChevronDownIcon,
@@ -13,19 +15,38 @@ import {
   InformationCircleIcon,
   PhoneIcon,
   CogIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  ShoppingCartIcon
 } from '@heroicons/react/24/outline';
 
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [cartItemCount, setCartItemCount] = useStateCart(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Debug: mostrar estado de autenticación en consola
   useEffect(() => {
     console.log('Navbar Auth State:', { isAuthenticated, user });
   }, [isAuthenticated, user]);
+
+  // Actualizar contador del carrito
+  useEffectCart(() => {
+    const updateCartCount = () => {
+      const count = cartService.getTotalItems();
+      setCartItemCount(count);
+    };
+
+    updateCartCount();
+    window.addEventListener('storage', updateCartCount);
+    window.addEventListener('cartUpdated', updateCartCount);
+
+    return () => {
+      window.removeEventListener('storage', updateCartCount);
+      window.removeEventListener('cartUpdated', updateCartCount);
+    };
+  }, []);
 
   // Cerrar dropdown cuando se hace clic fuera
   useEffect(() => {
@@ -83,6 +104,19 @@ export const Navbar: React.FC = () => {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
+            {/* Cart Icon */}
+            <Link
+              href="/cart"
+              className="relative p-2 text-gray-700 hover:text-blue-600 transition-colors duration-200"
+            >
+              <ShoppingCartIcon className="w-6 h-6" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
+            </Link>
+
             {isAuthenticated ? (
               <div className="relative" ref={dropdownRef}>
                 <button
