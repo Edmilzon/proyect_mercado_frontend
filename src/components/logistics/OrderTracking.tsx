@@ -43,8 +43,8 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({
   const [ubicacionActual, setUbicacionActual] = useState<Coordenadas | null>(null);
   
   // Referencias para tracking
-  const trackingIntervalRef = useRef<NodeJS.Timeout>();
-  const watchIdRef = useRef<number>();
+  const trackingIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const watchIdRef = useRef<number | undefined>(undefined);
 
   // Simular datos de tracking (en producción vendría de la API)
   const simularTrackingData = (): TrackingPedido => {
@@ -72,12 +72,17 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({
         tasa_comision: 0.10,
         creado_at: new Date().toISOString(),
         actualizado_at: new Date().toISOString(),
-        nombre: 'Juan',
-        apellido: 'Pérez',
-        email: 'juan.perez@gmail.com',
-        numero_telefono: '71234567',
-        rol: 'vendedor',
-        esta_activo: true
+        usuario: {
+          usuario_id: 'usuario-1',
+          email: 'juan.perez@gmail.com',
+          nombre: 'Juan',
+          apellido: 'Pérez',
+          numero_telefono: '71234567',
+          rol: 'vendedor',
+          esta_activo: true,
+          creado_at: new Date().toISOString(),
+          actualizado_at: new Date().toISOString()
+        }
       },
       historial_ubicaciones: [
         {
@@ -330,9 +335,9 @@ export const OrderTracking: React.FC<OrderTrackingProps> = ({
               </div>
               <div>
                 <p className="font-medium text-gray-900">
-                  {trackingData.vendedor.nombre} {trackingData.vendedor.apellido}
+                  {trackingData.vendedor?.usuario?.nombre} {trackingData.vendedor?.usuario?.apellido}
                 </p>
-                <p className="text-sm text-gray-500">{trackingData.vendedor.email}</p>
+                <p className="text-sm text-gray-500">{trackingData.vendedor?.usuario?.email}</p>
               </div>
             </div>
             

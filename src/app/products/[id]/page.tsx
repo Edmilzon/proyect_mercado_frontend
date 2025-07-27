@@ -453,7 +453,7 @@ export default function ProductDetailPage() {
                 <div>
                   <p className="font-medium text-gray-900">Vendedor</p>
                   <p className="text-sm text-gray-600">
-                    {product.vendedor?.nombre} {product.vendedor?.apellido}
+                    {product.vendedor?.usuario?.nombre} {product.vendedor?.usuario?.apellido}
                   </p>
                 </div>
               </div>

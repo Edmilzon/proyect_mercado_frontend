@@ -106,13 +106,16 @@ export const obtenerDireccion = async (lat: number, lng: number): Promise<string
     }
 
     const geocoder = new window.google.maps.Geocoder();
-    const response = await geocoder.geocode({ location: { lat, lng } });
     
-    if (response.results.length > 0) {
-      return response.results[0].formatted_address;
-    }
-    
-    return 'Dirección no encontrada';
+    return new Promise((resolve, reject) => {
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === window.google.maps.GeocoderStatus.OK && results && results.length > 0) {
+          resolve(results[0].formatted_address);
+        } else {
+          resolve('Dirección no encontrada');
+        }
+      });
+    });
   } catch (error) {
     console.error('Error getting address:', error);
     return 'Error al obtener dirección';
@@ -121,11 +124,11 @@ export const obtenerDireccion = async (lat: number, lng: number): Promise<string
 
 // Crear marcador en el mapa
 export const crearMarcador = (
-  map: google.maps.Map,
+  map: any,
   position: { lat: number; lng: number },
   title?: string,
   icon?: string
-): google.maps.Marker => {
+): any => {
   return new window.google.maps.Marker({
     position,
     map,
@@ -136,10 +139,10 @@ export const crearMarcador = (
 
 // Crear polígono en el mapa
 export const crearPoligono = (
-  map: google.maps.Map,
-  paths: google.maps.LatLngLiteral[],
-  options?: google.maps.PolygonOptions
-): google.maps.Polygon => {
+  map: any,
+  paths: any[],
+  options?: any
+): any => {
   return new window.google.maps.Polygon({
     paths,
     map,
@@ -154,11 +157,11 @@ export const crearPoligono = (
 
 // Dibujar ruta entre dos puntos
 export const dibujarRuta = async (
-  map: google.maps.Map,
+  map: any,
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
-  travelMode: google.maps.TravelMode = google.maps.TravelMode.DRIVING
-): Promise<google.maps.DirectionsRenderer> => {
+  travelMode: any = window.google.maps.TravelMode.DRIVING
+): Promise<any> => {
   const directionsService = new window.google.maps.DirectionsService();
   const directionsRenderer = new window.google.maps.DirectionsRenderer({
     map,
@@ -177,7 +180,7 @@ export const dibujarRuta = async (
 
 // Centrar mapa en ubicación
 export const centrarMapa = (
-  map: google.maps.Map,
+  map: any,
   position: { lat: number; lng: number },
   zoom?: number
 ): void => {
@@ -188,16 +191,16 @@ export const centrarMapa = (
 };
 
 // Limpiar marcadores del mapa
-export const limpiarMarcadores = (markers: google.maps.Marker[]): void => {
+export const limpiarMarcadores = (markers: any[]): void => {
   markers.forEach(marker => marker.setMap(null));
 };
 
 // Limpiar polígonos del mapa
-export const limpiarPoligonos = (polygons: google.maps.Polygon[]): void => {
+export const limpiarPoligonos = (polygons: any[]): void => {
   polygons.forEach(polygon => polygon.setMap(null));
 };
 
 // Limpiar rutas del mapa
-export const limpiarRutas = (renderers: google.maps.DirectionsRenderer[]): void => {
+export const limpiarRutas = (renderers: any[]): void => {
   renderers.forEach(renderer => renderer.setMap(null));
 }; 

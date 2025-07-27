@@ -72,8 +72,14 @@ declare namespace google.maps {
     fillOpacity?: number;
   }
 
+  // Event system
+  namespace event {
+    function addListener(instance: any, eventName: string, handler: Function): void;
+    function removeListener(instance: any, eventName: string, handler: Function): void;
+  }
+
   class DirectionsService {
-    route(request: DirectionsRequest, callback: (result: DirectionsResult, status: DirectionsStatus) => void): void;
+    route(request: DirectionsRequest): Promise<DirectionsResult>;
   }
 
   interface DirectionsRequest {

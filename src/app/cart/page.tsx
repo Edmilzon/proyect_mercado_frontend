@@ -93,7 +93,7 @@ export default function CartPage() {
 
   const loadZones = async () => {
     try {
-      const zonesData = await zonesService.getActiveZones();
+      const zonesData = await zonesService.getZonasActivas();
       console.log('Zones loaded:', zonesData);
       
       // Asegurar que zonesData sea un array

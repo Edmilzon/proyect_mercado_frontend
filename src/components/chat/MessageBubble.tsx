@@ -5,7 +5,6 @@ import { Mensaje } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   CheckIcon,
-  CheckDoubleIcon,
   TrashIcon,
   PhotoIcon,
   DocumentIcon
@@ -173,7 +172,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               {isOwnMessage && (
                 <>
                   {message.es_leido ? (
-                    <CheckDoubleIcon className="w-3 h-3 text-blue-300" />
+                    <CheckIcon className="w-3 h-3 text-blue-300" />
                   ) : (
                     <CheckIcon className="w-3 h-3 text-gray-300" />
                   )}

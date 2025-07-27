@@ -157,15 +157,17 @@ class ZonesService extends ApiService {
 
       // Calcular distancia a cada zona (simplificado)
       let zonaMasCercana = todasLasZonas[0];
+      const centroZona0 = this.getCentroZona(todasLasZonas[0]);
       let distanciaMinima = this.calcularDistancia(
         latitud, longitud,
-        this.getCentroZona(todasLasZonas[0])
+        centroZona0.latitud, centroZona0.longitud
       );
 
       for (const zona of todasLasZonas.slice(1)) {
+        const centroZona = this.getCentroZona(zona);
         const distancia = this.calcularDistancia(
           latitud, longitud,
-          this.getCentroZona(zona)
+          centroZona.latitud, centroZona.longitud
         );
 
         if (distancia < distanciaMinima) {

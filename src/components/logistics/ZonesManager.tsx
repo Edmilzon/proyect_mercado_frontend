@@ -453,9 +453,9 @@ export const ZonesManager: React.FC<ZonesManagerProps> = ({
                     <div key={vendedor.vendedor_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                       <div>
                         <p className="font-medium text-gray-900">
-                          {vendedor.nombre} {vendedor.apellido}
+                          {vendedor.usuario?.nombre} {vendedor.usuario?.apellido}
                         </p>
-                        <p className="text-sm text-gray-500">{vendedor.email}</p>
+                        <p className="text-sm text-gray-500">{vendedor.usuario?.email}</p>
                       </div>
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         {vendedor.estado_onboarding}
