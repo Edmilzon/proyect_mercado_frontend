@@ -1,187 +1,383 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { authService } from '@/services/auth';
+import { sellerService } from '@/services/seller';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { VALIDATION, USER_ROLES } from '@/constants';
-
-// Esquema de validación para registro
-const registerSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'El email es requerido')
-    .email('El email no es válido'),
-  password: z
-    .string()
-    .min(VALIDATION.PASSWORD_MIN_LENGTH, `La contraseña debe tener al menos ${VALIDATION.PASSWORD_MIN_LENGTH} caracteres`),
-  confirmPassword: z
-    .string()
-    .min(1, 'Confirma tu contraseña'),
-  nombre: z
-    .string()
-    .min(2, 'El nombre debe tener al menos 2 caracteres')
-    .max(100, 'El nombre no puede exceder 100 caracteres'),
-  apellido: z
-    .string()
-    .min(2, 'El apellido debe tener al menos 2 caracteres')
-    .max(100, 'El apellido no puede exceder 100 caracteres'),
-  numero_telefono: z
-    .string()
-    .min(1, 'El número de teléfono es requerido')
-    .regex(VALIDATION.PHONE_REGEX, 'El número de teléfono no es válido'),
-  rol: z.enum(['comprador', 'vendedor', 'admin', 'super_admin'] as const),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
-  path: ['confirmPassword'],
-});
-
-type RegisterFormData = z.infer<typeof registerSchema>;
+import { 
+  UserIcon, 
+  EnvelopeIcon, 
+  PhoneIcon, 
+  LockClosedIcon,
+  IdentificationIcon,
+  MapPinIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon
+} from '@heroicons/react/24/outline';
 
 interface RegisterFormProps {
   onSuccess?: () => void;
-  onSwitchToLogin?: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({
-  onSuccess,
-  onSwitchToLogin,
-}) => {
-  const { register: registerUser, isLoading, error, clearError } = useAuth();
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
+  const router = useRouter();
+  const { login } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSellerForm, setShowSellerForm] = useState(false);
+  const [registeredUser, setRegisteredUser] = useState<any>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    watch,
-  } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      rol: 'comprador',
-    },
+  // Formulario de registro
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    nombre: '',
+    apellido: '',
+    numero_telefono: '',
+    rol: 'comprador' as 'comprador' | 'vendedor'
   });
 
-  const onSubmit = async (data: RegisterFormData) => {
+  // Formulario de datos extra de vendedor
+  const [sellerData, setSellerData] = useState({
+    numero_identificacion: '',
+    latitud_actual: -16.4897,
+    longitud_actual: -68.1193,
+    zona_asignada_id: ''
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSellerInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setSellerData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    // Validaciones
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      clearError();
-      const { confirmPassword, ...userData } = data;
-      await registerUser(userData);
-      onSuccess?.();
-    } catch (error) {
-      // El error se maneja en el store
-      console.error('Register error:', error);
+      const response = await authService.register({
+        email: formData.email,
+        password: formData.password,
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        numero_telefono: formData.numero_telefono,
+        rol: formData.rol
+      });
+
+      setRegisteredUser(response.usuario);
+      
+      if (formData.rol === 'vendedor') {
+        setShowSellerForm(true);
+      } else {
+        // Login automático para compradores
+        await login(formData.email, formData.password);
+        onSuccess?.();
+        router.push('/');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Error al registrar usuario');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  return (
-    <div className="w-full max-w-md mx-auto">
-      <div className="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 mb-4">
-        <div className="mb-6 text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Crear Cuenta</h2>
+  const handleSellerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await sellerService.registerSeller({
+        vendedor_id: registeredUser.usuario_id,
+        numero_identificacion: sellerData.numero_identificacion,
+        estado_onboarding: 'pendiente',
+        latitud_actual: sellerData.latitud_actual,
+        longitud_actual: sellerData.longitud_actual,
+        zona_asignada_id: sellerData.zona_asignada_id || undefined
+      });
+
+      // Login automático
+      await login(formData.email, formData.password);
+      onSuccess?.();
+      router.push('/seller/dashboard');
+    } catch (error: any) {
+      setError(error.message || 'Error al registrar datos de vendedor');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setSellerData(prev => ({
+            ...prev,
+            latitud_actual: position.coords.latitude,
+            longitud_actual: position.coords.longitude
+          }));
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          setError('No se pudo obtener la ubicación automáticamente');
+        }
+      );
+    }
+  };
+
+  if (showSellerForm) {
+    return (
+      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+        <div className="text-center mb-6">
+          <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900">¡Registro Exitoso!</h2>
           <p className="text-gray-600 mt-2">
-            Completa los datos para registrarte
+            Completa los datos adicionales para activar tu cuenta de vendedor
           </p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSellerSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Número de Identificación
+            </label>
             <Input
-              label="Nombre"
-              placeholder="Juan"
-              error={errors.nombre?.message}
-              {...register('nombre')}
-            />
-
-            <Input
-              label="Apellido"
-              placeholder="Pérez"
-              error={errors.apellido?.message}
-              {...register('apellido')}
+              type="text"
+              name="numero_identificacion"
+              value={sellerData.numero_identificacion}
+              onChange={handleSellerInputChange}
+              placeholder="12345678"
+              required
+              icon={<IdentificationIcon className="w-5 h-5" />}
             />
           </div>
-
-          <Input
-            label="Email"
-            type="email"
-            placeholder="tu@email.com"
-            error={errors.email?.message}
-            {...register('email')}
-          />
-
-          <Input
-            label="Número de Teléfono"
-            type="tel"
-            placeholder="71234567"
-            error={errors.numero_telefono?.message}
-            {...register('numero_telefono')}
-          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rol
+              Ubicación Actual
             </label>
-            <select
-              className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-black ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              {...register('rol')}
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                type="number"
+                name="latitud_actual"
+                value={sellerData.latitud_actual}
+                onChange={handleSellerInputChange}
+                placeholder="Latitud"
+                step="any"
+                required
+              />
+              <Input
+                type="number"
+                name="longitud_actual"
+                value={sellerData.longitud_actual}
+                onChange={handleSellerInputChange}
+                placeholder="Longitud"
+                step="any"
+                required
+              />
+            </div>
+            <button
+              type="button"
+              onClick={getCurrentLocation}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
             >
-              <option value="comprador">Comprador</option>
-              <option value="vendedor">Vendedor</option>
-              <option value="admin">Administrador</option>
-              <option value="super_admin">Super Administrador</option>
-            </select>
-            {errors.rol && (
-              <p className="mt-1 text-sm text-red-600">{errors.rol.message}</p>
-            )}
+              <MapPinIcon className="w-4 h-4 mr-1" />
+              Obtener ubicación automáticamente
+            </button>
           </div>
 
-          <Input
-            label="Contraseña"
-            type="password"
-            placeholder="••••••••"
-            error={errors.password?.message}
-            {...register('password')}
-          />
-
-          <Input
-            label="Confirmar Contraseña"
-            type="password"
-            placeholder="••••••••"
-            error={errors.confirmPassword?.message}
-            {...register('confirmPassword')}
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Zona de Entrega (Opcional)
+            </label>
+            <Input
+              type="text"
+              name="zona_asignada_id"
+              value={sellerData.zona_asignada_id}
+              onChange={handleSellerInputChange}
+              placeholder="ID de zona (se asignará automáticamente)"
+            />
+          </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-sm text-red-600">{error}</p>
+            <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-md">
+              <ExclamationTriangleIcon className="w-5 h-5 text-red-500 mr-2" />
+              <span className="text-sm text-red-700">{error}</span>
             </div>
           )}
 
           <Button
             type="submit"
-            className="w-full bg-black text-white hover:bg-gray-800 border border-black"
-            loading={isLoading}
             disabled={isLoading}
+            className="w-full"
           >
-            {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+            {isLoading ? 'Completando registro...' : 'Completar Registro de Vendedor'}
           </Button>
         </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            ¿Ya tienes una cuenta?{' '}
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
-              className="text-blue-600 hover:text-blue-500 font-medium"
-            >
-              Inicia sesión aquí
-            </button>
-          </p>
-        </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Crear Cuenta</h2>
+        <p className="text-gray-600 mt-2">
+          Únete a nuestra plataforma de comercio electrónico
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre
+            </label>
+            <Input
+              type="text"
+              name="nombre"
+              value={formData.nombre}
+              onChange={handleInputChange}
+              placeholder="Tu nombre"
+              required
+              icon={<UserIcon className="w-5 h-5" />}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Apellido
+            </label>
+            <Input
+              type="text"
+              name="apellido"
+              value={formData.apellido}
+              onChange={handleInputChange}
+              placeholder="Tu apellido"
+              required
+              icon={<UserIcon className="w-5 h-5" />}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email
+          </label>
+          <Input
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            placeholder="tu@email.com"
+            required
+            icon={<EnvelopeIcon className="w-5 h-5" />}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Teléfono
+          </label>
+          <Input
+            type="tel"
+            name="numero_telefono"
+            value={formData.numero_telefono}
+            onChange={handleInputChange}
+            placeholder="71234567"
+            required
+            icon={<PhoneIcon className="w-5 h-5" />}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Contraseña
+          </label>
+          <Input
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleInputChange}
+            placeholder="Mínimo 6 caracteres"
+            required
+            icon={<LockClosedIcon className="w-5 h-5" />}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Confirmar Contraseña
+          </label>
+          <Input
+            type="password"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleInputChange}
+            placeholder="Repite tu contraseña"
+            required
+            icon={<LockClosedIcon className="w-5 h-5" />}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tipo de Cuenta
+          </label>
+          <select
+            name="rol"
+            value={formData.rol}
+            onChange={handleInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="comprador">Comprador</option>
+            <option value="vendedor">Vendedor</option>
+          </select>
+        </div>
+
+        {error && (
+          <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-md">
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-500 mr-2" />
+            <span className="text-sm text-red-700">{error}</span>
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          disabled={isLoading}
+          className="w-full"
+        >
+          {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
+        </Button>
+      </form>
     </div>
   );
-};
-
-export default RegisterForm; 
+}; 

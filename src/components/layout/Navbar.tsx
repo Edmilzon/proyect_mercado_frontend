@@ -195,6 +195,17 @@ export const Navbar: React.FC = () => {
                       </>
                     )}
                     
+                    {(user?.rol === 'admin' || user?.rol === 'super_admin') && (
+                      <Link
+                        href="/admin"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                      >
+                        <CogIcon className="w-4 h-4 mr-2" />
+                        Panel Admin
+                      </Link>
+                    )}
+                    
                     <Link
                       href="/profile/reviews"
                       onClick={() => setIsDropdownOpen(false)}

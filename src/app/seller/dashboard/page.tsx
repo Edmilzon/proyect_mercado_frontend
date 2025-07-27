@@ -34,6 +34,28 @@ export default function SellerDashboardPage() {
     calificacionPromedio: 0
   });
 
+  // Verificar si el vendedor ha completado su perfil
+  const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
+
+  useEffect(() => {
+    const checkSellerProfile = async () => {
+      try {
+        const sellerData = await sellerService.getSellerById(user!.usuario_id);
+        setHasCompletedProfile(!!sellerData.numero_identificacion);
+      } catch (error) {
+        // Si no existe el vendedor, no ha completado el perfil
+        setHasCompletedProfile(false);
+      } finally {
+        setIsCheckingProfile(false);
+      }
+    };
+
+    if (user) {
+      checkSellerProfile();
+    }
+  }, [user]);
+
   // Redirigir si no está autenticado o no es vendedor
   React.useEffect(() => {
     if (!isAuthenticated) {

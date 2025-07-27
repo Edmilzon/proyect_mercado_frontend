@@ -460,4 +460,24 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface CreateVendedorRequest {
+  vendedor_id: string;
+  numero_identificacion: string;
+  estado_onboarding?: 'pendiente' | 'aprobado' | 'rechazado';
+  latitud_actual?: number;
+  longitud_actual?: number;
+  zona_asignada_id?: string;
+}
+
+export interface UpdateVendedorRequest {
+  numero_identificacion?: string;
+  estado_onboarding?: 'pendiente' | 'aprobado' | 'rechazado';
+  latitud_actual?: number;
+  longitud_actual?: number;
+  zona_asignada_id?: string;
+  calificacion_promedio?: number;
+  total_resenas?: number;
+  tasa_comision?: number;
 } 

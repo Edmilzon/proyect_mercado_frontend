@@ -1,6 +1,5 @@
 import { ApiService } from './api';
-import { API_ENDPOINTS } from '@/constants';
-import { Vendedor } from '@/types';
+import { Vendedor, CreateVendedorRequest } from '@/types';
 
 export interface UpdateLocationRequest {
   vendedor_id: string;
@@ -16,73 +15,70 @@ export interface SellerStats {
   calificacionPromedio: number;
 }
 
-export class SellerService extends ApiService {
-  async getSellerData(sellerId: string): Promise<Vendedor> {
-    try {
-      const response = await this.get<{ vendedores: Vendedor[] }>(API_ENDPOINTS.SELLERS.BASE);
-      
-      // Buscar el vendedor que coincida con el usuario_id
-      const vendedor = response.vendedores.find(v => v.usuario?.usuario_id === sellerId);
-      
-      if (vendedor) {
-        return vendedor;
-      }
-      
-      // Si no existe, crear un vendedor con datos básicos
-      return {
-        vendedor_id: sellerId,
-        numero_identificacion: '',
-        estado_onboarding: 'pendiente',
-        calificacion_promedio: 0,
-        total_resenas: 0,
-        tasa_comision: 0.05,
-        creado_at: new Date().toISOString(),
-        actualizado_at: new Date().toISOString(),
-        usuario: undefined
-      };
-    } catch (error) {
-      console.error('Error getting seller data:', error);
-      throw error;
-    }
+class SellerService extends ApiService {
+  /**
+   * Registrar datos extra de vendedor (API 5)
+   */
+  async registerSeller(data: CreateVendedorRequest): Promise<Vendedor> {
+    return this.post('/vendedores', data);
   }
 
-  async registerSellerData(sellerData: {
+  /**
+   * Listar todos los vendedores (API 6) - Para administradores
+   */
+  async getAllSellers(): Promise<Vendedor[]> {
+    return this.get('/vendedores');
+  }
+
+  /**
+   * Obtener vendedor por ID
+   */
+  async getSellerById(sellerId: string): Promise<Vendedor> {
+    return this.get(`/vendedores/${sellerId}`);
+  }
+
+  /**
+   * Actualizar estado de onboarding de vendedor
+   */
+  async updateSellerStatus(sellerId: string, status: 'pendiente' | 'aprobado' | 'rechazado'): Promise<Vendedor> {
+    return this.patch(`/vendedores/${sellerId}/status`, { estado_onboarding: status });
+  }
+
+  /**
+   * Registrar ubicación de vendedor (API 7)
+   */
+  async updateSellerLocation(data: {
     vendedor_id: string;
-    numero_identificacion: string;
-    estado_onboarding?: string;
-    latitud_actual?: number;
-    longitud_actual?: number;
-    zona_asignada_id?: string;
-  }): Promise<Vendedor> {
-    const response = await this.post<Vendedor>(API_ENDPOINTS.SELLERS.BASE, sellerData);
-    return response;
+    latitud: number;
+    longitud: number;
+    precision_m: number;
+  }): Promise<void> {
+    return this.post('/vendedores/ubicaciones', data);
   }
 
-  async updateLocation(locationData: UpdateLocationRequest): Promise<void> {
-    await this.post(API_ENDPOINTS.SELLERS.LOCATIONS, locationData);
+  /**
+   * Obtener ubicaciones históricas de vendedor (API 8)
+   */
+  async getSellerLocations(sellerId: string): Promise<any[]> {
+    return this.get(`/vendedores/${sellerId}/ubicaciones`);
   }
 
-  async getLocationHistory(sellerId: string): Promise<any[]> {
-    const response = await this.get<any[]>(
-      API_ENDPOINTS.SELLERS.LOCATIONS_BY_ID(sellerId)
-    );
-    return response;
-  }
-
-  async getSellerStats(sellerId: string): Promise<SellerStats> {
-    try {
-      // TODO: Implementar endpoint de estadísticas del vendedor
-      // Por ahora retornamos datos vacíos hasta que se implemente la API
-      return {
-        totalVentas: 0,
-        ventasHoy: 0,
-        productosActivos: 0,
-        calificacionPromedio: 0
-      };
-    } catch (error) {
-      console.error('Error getting seller stats:', error);
-      throw error;
-    }
+  /**
+   * Obtener estadísticas de vendedores
+   */
+  async getSellerStats(): Promise<{
+    total: number;
+    aprobados: number;
+    pendientes: number;
+    rechazados: number;
+  }> {
+    const sellers = await this.getAllSellers();
+    return {
+      total: sellers.length,
+      aprobados: sellers.filter(s => s.estado_onboarding === 'aprobado').length,
+      pendientes: sellers.filter(s => s.estado_onboarding === 'pendiente').length,
+      rechazados: sellers.filter(s => s.estado_onboarding === 'rechazado').length,
+    };
   }
 }
 
