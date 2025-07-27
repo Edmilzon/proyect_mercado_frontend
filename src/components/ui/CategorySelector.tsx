@@ -30,6 +30,38 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
   const [level3Options, setLevel3Options] = useState<CategoriaProducto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Función para construir la jerarquía de categorías
+  const buildCategoryHierarchy = (flatCategories: CategoriaProducto[]) => {
+    // Crear un mapa de todas las categorías
+    const categoryMap = new Map<string, CategoriaProducto>();
+    flatCategories.forEach(cat => {
+      categoryMap.set(cat.categoria_id, { ...cat, subcategorias: [] });
+    });
+
+    // Construir la jerarquía
+    const rootCategories: CategoriaProducto[] = [];
+    
+    flatCategories.forEach(cat => {
+      const category = categoryMap.get(cat.categoria_id)!;
+      
+      if (!cat.categoria_padre_id) {
+        // Es una categoría raíz
+        rootCategories.push(category);
+      } else {
+        // Es una subcategoría
+        const parent = categoryMap.get(cat.categoria_padre_id);
+        if (parent) {
+          if (!parent.subcategorias) {
+            parent.subcategorias = [];
+          }
+          parent.subcategorias.push(category);
+        }
+      }
+    });
+
+    return rootCategories;
+  };
+
   // Cargar categorías principales
   useEffect(() => {
     const loadCategories = async () => {
@@ -38,9 +70,11 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
         const response = await fetch('https://proyect-mercado-backend.fly.dev/api/categorias');
         const data = await response.json();
         
-        // Filtrar solo categorías principales (sin categoria_padre_id)
-        const mainCategories = data.categorias.filter((cat: CategoriaProducto) => !cat.categoria_padre_id);
-        setCategories(mainCategories);
+        // Construir la jerarquía desde la lista plana
+        const hierarchicalCategories = buildCategoryHierarchy(data.categorias);
+        setCategories(hierarchicalCategories);
+        
+        console.log('Categorías jerárquicas construidas:', hierarchicalCategories);
       } catch (error) {
         console.error('Error loading categories:', error);
       } finally {
@@ -55,7 +89,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
   useEffect(() => {
     if (selectedLevel1) {
       const level1Category = categories.find(cat => cat.categoria_id === selectedLevel1);
-      if (level1Category && level1Category.subcategorias) {
+      if (level1Category && level1Category.subcategorias && level1Category.subcategorias.length > 0) {
         setLevel2Options(level1Category.subcategorias);
         setSelectedLevel2('');
         setSelectedLevel3('');
@@ -75,7 +109,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
   useEffect(() => {
     if (selectedLevel2) {
       const level2Category = level2Options.find(cat => cat.categoria_id === selectedLevel2);
-      if (level2Category && level2Category.subcategorias) {
+      if (level2Category && level2Category.subcategorias && level2Category.subcategorias.length > 0) {
         setLevel3Options(level2Category.subcategorias);
         setSelectedLevel3('');
       } else {
@@ -214,6 +248,14 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
       {(selectedLevel1 || selectedLevel2 || selectedLevel3) && (
         <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-md">
           <span className="font-medium">Categoría seleccionada:</span> {getSelectedCategoryName()}
+        </div>
+      )}
+
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-400 mt-2">
+          Debug: L1={selectedLevel1}, L2={selectedLevel2}, L3={selectedLevel3} | 
+          L2 options: {level2Options.length}, L3 options: {level3Options.length}
         </div>
       )}
     </div>

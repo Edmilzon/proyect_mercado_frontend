@@ -218,7 +218,7 @@ Descripción: Eliminar categoría (solo si no tiene subcategorías).
 
 	PRODUCTOS
 
-19. POST https://proyect-mercado-backend.fly.dev/productos
+19. POST https://proyect-mercado-backend.fly.dev/api/productos
 Descripción: Crear un nuevo producto (SKU automático).
 Body:
 	{
@@ -236,30 +236,6 @@ Body:
 Descripción: Listar todos los productos con categoría e imágenes.
 Respuesta:
 
-{
-  "productos": [
-    {
-      "producto_id": "uuid",
-      "nombre": "iPhone 15 Pro",
-      "descripcion": "El último iPhone con características avanzadas",
-      "precio_base": 1200.00,
-      "precio_actual": 1100.00,
-      "categoria_id": "uuid",
-      "categoria": {
-        "categoria_id": "uuid",
-        "nombre": "Smartphones"
-      },
-      "cantidad_stock": 50,
-      "url_imagen_principal": "https://ejemplo.com/iphone.jpg",
-      "esta_activo": true,
-      "sku": "IPH123456",
-      "peso_g": 187,
-      "imagenes": [...],
-      "creado_at": "2024-01-01T00:00:00Z",
-      "actualizado_at": "2024-01-01T00:00:00Z"
-    }
-  ]
-}
 
 21. GET https://proyect-mercado-backend.fly.dev/productos/buscar
 Descripción: Búsqueda avanzada con filtros.
@@ -267,7 +243,7 @@ Query Parameters:
 ?nombre=iphone&categoria_id=uuid&precio_min=1000&precio_max=1500&esta_activo=true&limit=20&offset=0
 
 
-22. GET https://proyect-mercado-backend.fly.dev/productos/{producto_id}
+22. GET https://proyect-mercado-backend.fly.dev/api/productos/{producto_id}
 Descripción: Obtener producto específico con detalles completos.
 
 23. PUT https://proyect-mercado-backend.fly.dev/productos/{producto_id}
@@ -291,7 +267,7 @@ Body:
 
  GESTIÓN DE IMÁGENES
 
-26. POST https://proyect-mercado-backend.fly.dev/productos/{producto_id}/imagenes
+26. POST https://proyect-mercado-backend.fly.dev/api/productos/{producto_id}/imagenes
 Descripción: Agregar imagen a un producto.
 Body:
 {

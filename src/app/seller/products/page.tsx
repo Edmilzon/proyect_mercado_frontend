@@ -10,6 +10,8 @@ import { CategorySelector } from '@/components/ui/CategorySelector';
 import Navbar from '@/components/layout/Navbar';
 import { productsService } from '@/services/products';
 import { categoriesService } from '@/services/categories';
+import { CloudinaryService } from '@/services/cloudinary';
+import Image from 'next/image';
 import { 
   ArrowLeftIcon,
   PlusIcon,
@@ -18,7 +20,8 @@ import {
   EyeIcon,
   PhotoIcon,
   CurrencyDollarIcon,
-  TagIcon
+  TagIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 import { Producto, CategoriaProducto, ImagenProducto } from '@/types';
@@ -100,10 +103,30 @@ export default function ProductsPage() {
         setEditingId(null);
       } else {
         // Crear producto
+        const { imagenes, ...productData } = formData;
+        
         const newProduct = await productsService.createProduct({
-          ...formData,
+          ...productData,
           sku: `SKU${Date.now()}`,
         });
+        
+        // Si hay imágenes adicionales, agregarlas al producto
+        if (imagenes.length > 0) {
+          try {
+            for (let i = 0; i < imagenes.length; i++) {
+              const imageUrl = imagenes[i];
+              
+              await productsService.addProductImage(newProduct.producto_id, {
+                url_imagen: imageUrl,
+                orden_indice: i + 1
+              });
+            }
+          } catch (error) {
+            console.error('Error adding additional images:', error);
+            alert('El producto se creó pero hubo un error al guardar las imágenes adicionales.');
+          }
+        }
+        
         setProducts(prev => [...prev, newProduct]);
         setIsAdding(false);
       }
@@ -157,29 +180,44 @@ export default function ProductsPage() {
     });
   };
 
+
+
   const handleImageUpload = (response: unknown) => {
-    const typedResponse = response as { public_id: string };
+    const typedResponse = response as { public_id: string; secure_url: string };
     setFormData(prev => ({
       ...prev,
-      url_imagen_principal: typedResponse.public_id
+      url_imagen_principal: typedResponse.secure_url // Usar la URL completa de Cloudinary
     }));
     setUploadedImages(prev => [response]);
   };
 
   const handleMultipleImageUpload = (response: unknown) => {
-    const typedResponse = response as { public_id: string };
-    setFormData(prev => ({
-      ...prev,
-      imagenes: [...prev.imagenes, typedResponse.public_id]
-    }));
+    const typedResponse = response as { public_id: string; secure_url: string };
+    
+    setFormData(prev => {
+      const newImagenes = [...prev.imagenes, typedResponse.secure_url];
+      return {
+        ...prev,
+        imagenes: newImagenes
+      };
+    });
     setUploadedImages(prev => [...prev, response]);
   };
 
   const handleRemoveImage = (publicId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      imagenes: prev.imagenes.filter(id => id !== publicId)
-    }));
+    setFormData(prev => {
+      // Buscar la imagen por public_id para obtener la URL
+      const typedImg = uploadedImages.find(img => (img as { public_id: string }).public_id === publicId) as { public_id: string; secure_url: string };
+      const imageUrl = typedImg?.secure_url;
+      
+      if (!imageUrl) return prev;
+      
+      return {
+        ...prev,
+        imagenes: prev.imagenes.filter(id => id !== imageUrl),
+        url_imagen_principal: prev.url_imagen_principal === imageUrl ? '' : prev.url_imagen_principal
+      };
+    });
     setUploadedImages(prev => prev.filter(img => (img as { public_id: string }).public_id !== publicId));
   };
 
@@ -325,36 +363,121 @@ export default function ProductsPage() {
                     maxFiles={1}
                     folder="productos"
                     maxSize={5}
-                    showPreview={true}
-                    uploadedImages={uploadedImages.filter(img => (img as { public_id: string }).public_id === formData.url_imagen_principal) as any}
+                    showPreview={false}
+                    showMainImage={true}
+                    uploadedImages={uploadedImages.filter(img => {
+                      const typedImg = img as { public_id: string; secure_url: string };
+                      return typedImg.secure_url === formData.url_imagen_principal;
+                    }) as any}
                   />
-                  {formData.url_imagen_principal && (
-                    <p className="text-xs text-green-600 mt-1">
-                      ✓ Imagen principal subida correctamente
-                    </p>
-                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Imágenes Adicionales
                   </label>
-                  <ImageUpload
-                    onUpload={handleMultipleImageUpload}
-                    onError={(error) => console.error('Error uploading images:', error)}
-                    onRemove={handleRemoveImage}
-                    multiple={true}
-                    maxFiles={5}
-                    folder="productos"
-                    maxSize={5}
-                    showPreview={true}
-                    uploadedImages={uploadedImages.filter(img => formData.imagenes.includes((img as { public_id: string }).public_id)) as any}
-                  />
-                  {formData.imagenes.length > 0 && (
-                    <p className="text-xs text-green-600 mt-1">
-                      ✓ {formData.imagenes.length} imagen(es) adicional(es) subida(s)
-                    </p>
-                  )}
+                  
+                  {/* Solo mostrar el botón para imágenes adicionales */}
+                  <div className="space-y-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        // Crear un input file temporal
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.multiple = true;
+                        input.accept = 'image/*';
+                        input.onchange = async (e) => {
+                          const files = (e.target as HTMLInputElement).files;
+                          if (files) {
+                            for (let i = 0; i < files.length; i++) {
+                              try {
+                                const response = await CloudinaryService.uploadImage(files[i], { folder: 'productos' });
+                                handleMultipleImageUpload(response);
+                              } catch (error) {
+                                console.error('Error uploading image:', error);
+                              }
+                            }
+                          }
+                        };
+                        input.click();
+                      }}
+                      className="w-full"
+                    >
+                      <PhotoIcon className="w-4 h-4 mr-2" />
+                      Seleccionar Imágenes
+                    </Button>
+
+                    {/* Mostrar imágenes subidas */}
+                    {(() => {
+                      const filteredImages = uploadedImages.filter(img => {
+                        const typedImg = img as { public_id: string; secure_url: string };
+                        return formData.imagenes.includes(typedImg.secure_url);
+                      });
+                      return filteredImages.length > 0;
+                    })() && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-700">Imágenes subidas:</h4>
+                        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                          {uploadedImages.filter(img => {
+                            const typedImg = img as { public_id: string; secure_url: string };
+                            return formData.imagenes.includes(typedImg.secure_url);
+                          }).map((image, index) => {
+                            const typedImage = image as { public_id: string; secure_url: string };
+                            const imageUrl = typedImage.secure_url;
+                            return (
+                            <div key={index} className="relative group">
+                                <div className="relative w-24 h-24">
+                                  <img
+                                    src={imageUrl}
+                                    alt={`Uploaded ${index + 1}`}
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'cover',
+                                      borderRadius: '6px',
+                                      backgroundColor: '#f3f4f6'
+                                    }}
+                                    onError={(e) => {
+                                      console.error('Error loading image:', imageUrl);
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.backgroundColor = '#ef4444';
+                                      target.style.color = 'white';
+                                      target.style.display = 'flex';
+                                      target.style.alignItems = 'center';
+                                      target.style.justifyContent = 'center';
+                                      target.textContent = 'Error';
+                                    }}
+                                  />
+                                  {/* Remove button */}
+                                  <button
+                                    onClick={() => handleRemoveImage((image as { public_id: string }).public_id)}
+                                    className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white p-1 rounded-full transition-colors duration-200 opacity-0 group-hover:opacity-100"
+                                    title="Eliminar imagen"
+                                  >
+                                    <XMarkIcon className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                          );
+                        })}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {(() => {
+                      const filteredImages = uploadedImages.filter(img => {
+                        const typedImg = img as { public_id: string; secure_url: string };
+                        return formData.imagenes.includes(typedImg.secure_url);
+                      });
+                      return filteredImages.length === 0;
+                    })() && (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        No hay imágenes adicionales subidas
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center space-x-2">

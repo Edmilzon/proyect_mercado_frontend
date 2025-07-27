@@ -83,31 +83,34 @@ export const API_ENDPOINTS = {
   },
   
   // Reseñas
-  REVIEWS: {
-    BASE: '/resenas',
-    SEARCH: '/resenas/buscar',
-    BY_SELLER: (id: string) => `/resenas/vendedor/${id}`,
-    BY_BUYER: (id: string) => `/resenas/comprador/${id}`,
-    PENDING: (id: string) => `/resenas/pendientes/${id}`,
-    BY_ID: (id: string) => `/resenas/${id}`,
-    RESPOND: (id: string) => `/resenas/${id}/responder`,
-    SELLER_RATING: (id: string) => `/vendedores/${id}/calificacion`,
-  },
-  
-  // Chat
-  CHAT: {
-    CONVERSATIONS: '/conversaciones',
-    CONVERSATIONS_SEARCH: '/conversaciones/buscar',
-    CONVERSATIONS_BY_USER: (id: string) => `/conversaciones/usuario/${id}`,
-    CONVERSATION_BY_ID: (id: string) => `/conversaciones/${id}`,
-    CONVERSATION_STATUS: (id: string) => `/conversaciones/${id}/estado`,
-    CONVERSATION_PARTICIPANTS: (id: string) => `/conversaciones/${id}/participantes`,
-    MESSAGES: '/mensajes',
-    MESSAGES_BY_CONVERSATION: (id: string) => `/mensajes/conversacion/${id}`,
-    MESSAGES_BY_ID: (id: string) => `/mensajes/${id}`,
-    MESSAGES_READ: (id: string) => `/mensajes/conversacion/${id}/leer`,
-    UNREAD_MESSAGES: (id: string) => `/mensajes/usuario/${id}/no-leidos`,
-  },
+      REVIEWS: {
+      BASE: '/resenas',
+      SEARCH: '/resenas/buscar',
+      BY_SELLER: (id: string) => `/resenas/vendedor/${id}`,
+      BY_BUYER: (id: string) => `/resenas/comprador/${id}`,
+      PENDING: (id: string) => `/resenas/pendientes/${id}`,
+      BY_ID: (id: string) => `/resenas/${id}`,
+      RESPOND: (id: string) => `/resenas/${id}/responder`,
+      SELLER_RATING: (id: string) => `/vendedores/${id}/calificacion`,
+    },
+    CHAT: {
+      CONVERSACIONES: {
+        BASE: '/conversaciones',
+        SEARCH: '/conversaciones/buscar',
+        BY_USER: (id: string) => `/conversaciones/usuario/${id}`,
+        BY_ID: (id: string) => `/conversaciones/${id}`,
+        UPDATE_STATUS: (id: string) => `/conversaciones/${id}/estado`,
+        ADD_PARTICIPANT: (id: string) => `/conversaciones/${id}/participantes`,
+        REMOVE_PARTICIPANT: (id: string, userId: string) => `/conversaciones/${id}/participantes/${userId}`,
+      },
+      MENSAJES: {
+        BASE: '/mensajes',
+        BY_CONVERSATION: (id: string) => `/mensajes/conversacion/${id}`,
+        BY_ID: (id: string) => `/mensajes/${id}`,
+        MARK_READ: (id: string) => `/mensajes/conversacion/${id}/leer`,
+        UNREAD_BY_USER: (id: string) => `/mensajes/usuario/${id}/no-leidos`,
+      },
+    },
   
   // Zonas de entrega
   DELIVERY_ZONES: {

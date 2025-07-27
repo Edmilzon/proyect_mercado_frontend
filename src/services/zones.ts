@@ -1,159 +1,316 @@
 import { ApiService } from './api';
 import { API_ENDPOINTS } from '@/constants';
-import { ZonaEntrega } from '@/types';
+import {
+  ZonaEntrega,
+  CreateZonaEntregaRequest,
+  UpdateZonaEntregaRequest,
+  CalcularTarifaRequest,
+  TarifaCalculada,
+  AsignarVendedorRequest,
+  OptimizarRutaRequest,
+  RutaOptimizada,
+  Vendedor,
+} from '@/types';
 
-export interface ShippingCalculation {
-  latitud_origen: number;
-  longitud_origen: number;
-  latitud_destino: number;
-  longitud_destino: number;
-  peso_total_g: number;
-  zona_id: string;
-}
+class ZonesService extends ApiService {
+  // ===== ZONAS DE ENTREGA =====
 
-export interface RouteOptimization {
-  pedidos_ids: string[];
-}
-
-export class ZonesService extends ApiService {
-  // Obtener todas las zonas de entrega
-  async getZones(): Promise<ZonaEntrega[]> {
-    try {
-      const response = await this.get<ZonaEntrega[]>(API_ENDPOINTS.DELIVERY_ZONES.BASE);
-      return response;
-    } catch (error) {
-      console.error('Error getting zones:', error);
-      throw error;
-    }
+  /**
+   * Crear una nueva zona de entrega
+   */
+  async createZona(data: CreateZonaEntregaRequest): Promise<ZonaEntrega> {
+    return this.post<ZonaEntrega>(API_ENDPOINTS.DELIVERY_ZONES.BASE, data);
   }
 
-  // Obtener solo zonas activas
-  async getActiveZones(): Promise<ZonaEntrega[]> {
-    try {
-      const response = await this.get<ZonaEntrega[]>(API_ENDPOINTS.DELIVERY_ZONES.ACTIVE);
-      return response;
-    } catch (error) {
-      console.error('Error getting active zones:', error);
-      throw error;
-    }
+  /**
+   * Obtener todas las zonas de entrega
+   */
+  async getZonas(): Promise<ZonaEntrega[]> {
+    return this.get<ZonaEntrega[]>(API_ENDPOINTS.DELIVERY_ZONES.BASE);
   }
 
-  // Obtener zona por ID
-  async getZoneById(zoneId: string): Promise<ZonaEntrega> {
-    try {
-      const response = await this.get<ZonaEntrega>(API_ENDPOINTS.DELIVERY_ZONES.BY_ID(zoneId));
-      return response;
-    } catch (error) {
-      console.error('Error getting zone by ID:', error);
-      throw error;
-    }
+  /**
+   * Obtener solo zonas activas
+   */
+  async getZonasActivas(): Promise<ZonaEntrega[]> {
+    return this.get<ZonaEntrega[]>(API_ENDPOINTS.DELIVERY_ZONES.ACTIVE);
   }
 
-  // Crear nueva zona de entrega
-  async createZone(zoneData: Partial<ZonaEntrega>): Promise<ZonaEntrega> {
-    try {
-      const response = await this.post<ZonaEntrega>(API_ENDPOINTS.DELIVERY_ZONES.BASE, zoneData);
-      return response;
-    } catch (error) {
-      console.error('Error creating zone:', error);
-      throw error;
-    }
+  /**
+   * Obtener zona por ID
+   */
+  async getZonaById(zonaId: string): Promise<ZonaEntrega> {
+    return this.get<ZonaEntrega>(API_ENDPOINTS.DELIVERY_ZONES.BY_ID(zonaId));
   }
 
-  // Actualizar zona de entrega
-  async updateZone(zoneId: string, zoneData: Partial<ZonaEntrega>): Promise<ZonaEntrega> {
-    try {
-      const response = await this.put<ZonaEntrega>(API_ENDPOINTS.DELIVERY_ZONES.BY_ID(zoneId), zoneData);
-      return response;
-    } catch (error) {
-      console.error('Error updating zone:', error);
-      throw error;
-    }
+  /**
+   * Actualizar zona de entrega
+   */
+  async updateZona(zonaId: string, data: UpdateZonaEntregaRequest): Promise<ZonaEntrega> {
+    return this.put<ZonaEntrega>(API_ENDPOINTS.DELIVERY_ZONES.BY_ID(zonaId), data);
   }
 
-  // Eliminar zona de entrega
-  async deleteZone(zoneId: string): Promise<void> {
-    try {
-      await this.delete(API_ENDPOINTS.DELIVERY_ZONES.BY_ID(zoneId));
-    } catch (error) {
-      console.error('Error deleting zone:', error);
-      throw error;
-    }
+  /**
+   * Eliminar zona de entrega
+   */
+  async deleteZona(zonaId: string): Promise<void> {
+    return this.delete(API_ENDPOINTS.DELIVERY_ZONES.BY_ID(zonaId));
   }
 
-  // Calcular tarifa de envío automáticamente
-  async calculateShippingFee(calculationData: ShippingCalculation): Promise<{ tarifa_envio: number }> {
-    try {
-      const response = await this.post<{ tarifa_envio: number }>(
-        API_ENDPOINTS.DELIVERY_ZONES.CALCULATE_FEE, 
-        calculationData
-      );
-      return response;
-    } catch (error) {
-      console.error('Error calculating shipping fee:', error);
-      throw error;
-    }
+  // ===== CÁLCULO DE TARIFAS =====
+
+  /**
+   * Calcular tarifa de envío automáticamente
+   */
+  async calcularTarifa(data: CalcularTarifaRequest): Promise<TarifaCalculada> {
+    return this.post<TarifaCalculada>(API_ENDPOINTS.DELIVERY_ZONES.CALCULATE_FEE, data);
   }
 
-  // Asignar vendedor a una zona
-  async assignSellerToZone(sellerId: string, zoneId: string): Promise<void> {
-    try {
-      await this.post(API_ENDPOINTS.DELIVERY_ZONES.ASSIGN_SELLER(sellerId), { zona_id: zoneId });
-    } catch (error) {
-      console.error('Error assigning seller to zone:', error);
-      throw error;
-    }
+  /**
+   * Calcular tarifa por coordenadas
+   */
+  async calcularTarifaPorCoordenadas(
+    origen: { latitud: number; longitud: number },
+    destino: { latitud: number; longitud: number },
+    pesoTotalG: number,
+    zonaId?: string
+  ): Promise<TarifaCalculada> {
+    const data: CalcularTarifaRequest = {
+      latitud_origen: origen.latitud,
+      longitud_origen: origen.longitud,
+      latitud_destino: destino.latitud,
+      longitud_destino: destino.longitud,
+      peso_total_g: pesoTotalG,
+      zona_id: zonaId,
+    };
+
+    return this.calcularTarifa(data);
   }
 
-  // Remover vendedor de una zona
-  async removeSellerFromZone(sellerId: string): Promise<void> {
-    try {
-      await this.delete(API_ENDPOINTS.DELIVERY_ZONES.ASSIGN_SELLER(sellerId));
-    } catch (error) {
-      console.error('Error removing seller from zone:', error);
-      throw error;
-    }
+  // ===== ASIGNACIÓN DE VENDEDORES =====
+
+  /**
+   * Asignar vendedor a una zona
+   */
+  async asignarVendedor(vendedorId: string, data: AsignarVendedorRequest): Promise<void> {
+    return this.post(API_ENDPOINTS.DELIVERY_ZONES.ASSIGN_SELLER(vendedorId), data);
   }
 
-  // Obtener vendedores asignados a una zona
-  async getSellersByZone(zoneId: string): Promise<unknown[]> {
-    try {
-      const response = await this.get<unknown[]>(API_ENDPOINTS.DELIVERY_ZONES.SELLERS_BY_ZONE(zoneId));
-      return response;
-    } catch (error) {
-      console.error('Error getting sellers by zone:', error);
-      throw error;
-    }
+  /**
+   * Remover vendedor de una zona
+   */
+  async removerVendedor(vendedorId: string): Promise<void> {
+    return this.delete(API_ENDPOINTS.DELIVERY_ZONES.ASSIGN_SELLER(vendedorId));
   }
 
-  // Optimizar ruta para un vendedor
-  async optimizeRoute(sellerId: string, optimizationData: RouteOptimization): Promise<unknown> {
-    try {
-      const response = await this.post<unknown>(
-        API_ENDPOINTS.DELIVERY_ZONES.OPTIMIZE_ROUTE(sellerId), 
-        optimizationData
-      );
-      return response;
-    } catch (error) {
-      console.error('Error optimizing route:', error);
-      throw error;
-    }
+  /**
+   * Obtener vendedores asignados a una zona
+   */
+  async getVendedoresByZona(zonaId: string): Promise<Vendedor[]> {
+    return this.get<Vendedor[]>(API_ENDPOINTS.DELIVERY_ZONES.SELLERS_BY_ZONE(zonaId));
   }
 
-  // Buscar zona por coordenadas
-  async findZoneByCoordinates(latitud: number, longitud: number): Promise<ZonaEntrega | null> {
+  // ===== OPTIMIZACIÓN DE RUTAS =====
+
+  /**
+   * Optimizar ruta para un vendedor
+   */
+  async optimizarRuta(vendedorId: string, data: OptimizarRutaRequest): Promise<RutaOptimizada> {
+    return this.post<RutaOptimizada>(API_ENDPOINTS.DELIVERY_ZONES.OPTIMIZE_ROUTE(vendedorId), data);
+  }
+
+  // ===== BÚSQUEDA POR COORDENADAS =====
+
+  /**
+   * Buscar zona por coordenadas
+   */
+  async buscarZonaPorCoordenadas(latitud: number, longitud: number): Promise<ZonaEntrega | null> {
     try {
-      const params = new URLSearchParams();
-      params.append('latitud', latitud.toString());
-      params.append('longitud', longitud.toString());
-      
-      const response = await this.get<ZonaEntrega>(
-        `${API_ENDPOINTS.DELIVERY_ZONES.SEARCH_BY_COORDINATES}?${params.toString()}`
-      );
-      return response;
+      const params = new URLSearchParams({
+        latitud: latitud.toString(),
+        longitud: longitud.toString(),
+      });
+
+      const url = `${API_ENDPOINTS.DELIVERY_ZONES.SEARCH_BY_COORDINATES}?${params}`;
+      return this.get<ZonaEntrega>(url);
     } catch (error) {
-      console.error('Error finding zone by coordinates:', error);
+      console.error('Error searching zone by coordinates:', error);
       return null;
+    }
+  }
+
+  // ===== MÉTODOS DE UTILIDAD =====
+
+  /**
+   * Obtener zona más cercana a unas coordenadas
+   */
+  async getZonaMasCercana(latitud: number, longitud: number): Promise<ZonaEntrega | null> {
+    try {
+      // Primero intentar buscar por coordenadas exactas
+      const zonaExacta = await this.buscarZonaPorCoordenadas(latitud, longitud);
+      if (zonaExacta) return zonaExacta;
+
+      // Si no hay zona exacta, obtener todas y calcular la más cercana
+      const todasLasZonas = await this.getZonasActivas();
+      
+      if (todasLasZonas.length === 0) return null;
+
+      // Calcular distancia a cada zona (simplificado)
+      let zonaMasCercana = todasLasZonas[0];
+      let distanciaMinima = this.calcularDistancia(
+        latitud, longitud,
+        this.getCentroZona(todasLasZonas[0])
+      );
+
+      for (const zona of todasLasZonas.slice(1)) {
+        const distancia = this.calcularDistancia(
+          latitud, longitud,
+          this.getCentroZona(zona)
+        );
+
+        if (distancia < distanciaMinima) {
+          distanciaMinima = distancia;
+          zonaMasCercana = zona;
+        }
+      }
+
+      return zonaMasCercana;
+    } catch (error) {
+      console.error('Error getting closest zone:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Calcular distancia entre dos puntos (fórmula de Haversine)
+   */
+  private calcularDistancia(
+    lat1: number, lon1: number,
+    lat2: number, lon2: number
+  ): number {
+    const R = 6371; // Radio de la Tierra en km
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLon = this.toRadians(lon2 - lon1);
+    
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRadians(degrees: number): number {
+    return degrees * (Math.PI / 180);
+  }
+
+  /**
+   * Obtener centro de una zona (simplificado)
+   */
+  private getCentroZona(zona: ZonaEntrega): { latitud: number; longitud: number } {
+    try {
+      const poligono = JSON.parse(zona.coordenadas_poligono) as any;
+      const coordenadas = poligono.coordinates[0];
+      
+      if (coordenadas && coordenadas.length > 0) {
+        let latSum = 0;
+        let lonSum = 0;
+        
+        for (const coord of coordenadas) {
+          latSum += coord[1]; // latitud
+          lonSum += coord[0]; // longitud
+        }
+        
+        return {
+          latitud: latSum / coordenadas.length,
+          longitud: lonSum / coordenadas.length,
+        };
+      }
+    } catch (error) {
+      console.error('Error parsing zone coordinates:', error);
+    }
+    
+    // Coordenadas por defecto (La Paz, Bolivia)
+    return { latitud: -16.4897, longitud: -68.1193 };
+  }
+
+  /**
+   * Verificar si un punto está dentro de una zona
+   */
+  async puntoEnZona(
+    latitud: number,
+    longitud: number,
+    zonaId: string
+  ): Promise<boolean> {
+    try {
+      const zona = await this.getZonaById(zonaId);
+      const poligono = JSON.parse(zona.coordenadas_poligono) as any;
+      
+      // Implementación simplificada del algoritmo point-in-polygon
+      // En producción, usar una librería como Turf.js
+      return this.pointInPolygon([longitud, latitud], poligono.coordinates[0]);
+    } catch (error) {
+      console.error('Error checking if point is in zone:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Algoritmo point-in-polygon (Ray casting)
+   */
+  private pointInPolygon(point: number[], polygon: number[][]): boolean {
+    const [x, y] = point;
+    let inside = false;
+    
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const [xi, yi] = polygon[i];
+      const [xj, yj] = polygon[j];
+      
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    
+    return inside;
+  }
+
+  /**
+   * Obtener estadísticas de zonas
+   */
+  async getEstadisticasZonas(): Promise<{
+    totalZonas: number;
+    zonasActivas: number;
+    zonasInactivas: number;
+    vendedoresAsignados: number;
+  }> {
+    try {
+      const [todasLasZonas, zonasActivas] = await Promise.all([
+        this.getZonas(),
+        this.getZonasActivas(),
+      ]);
+
+      let vendedoresAsignados = 0;
+      for (const zona of todasLasZonas) {
+        if (zona.vendedores) {
+          vendedoresAsignados += zona.vendedores.length;
+        }
+      }
+
+      return {
+        totalZonas: todasLasZonas.length,
+        zonasActivas: zonasActivas.length,
+        zonasInactivas: todasLasZonas.length - zonasActivas.length,
+        vendedoresAsignados,
+      };
+    } catch (error) {
+      console.error('Error getting zone statistics:', error);
+      return {
+        totalZonas: 0,
+        zonasActivas: 0,
+        zonasInactivas: 0,
+        vendedoresAsignados: 0,
+      };
     }
   }
 }

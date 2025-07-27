@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { Button } from './Button';
 import { 
   PhotoIcon, 
@@ -24,6 +25,7 @@ interface ImageUploadProps {
   showPreview?: boolean;
   aspectRatio?: number; // para recorte
   uploadedImages?: CloudinaryResponse[]; // Para mostrar imágenes ya subidas
+  showMainImage?: boolean; // Para mostrar la imagen principal en el área de drop
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -39,7 +41,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   maxSize = 10,
   showPreview = true,
   aspectRatio,
-  uploadedImages: externalUploadedImages
+  uploadedImages: externalUploadedImages,
+  showMainImage = false
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -52,9 +55,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const files = Array.from(event.target.files || []);
     
     if (files.length === 0) return;
+    
+    if (disabled || isUploading) return;
 
-    // Validar número de archivos
-    if (files.length > maxFiles) {
+    // Verificar número máximo de archivos
+    if (multiple && files.length > maxFiles) {
       const errorMsg = `Máximo ${maxFiles} archivos permitidos`;
       setError(errorMsg);
       onError?.(errorMsg);
@@ -63,12 +68,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
     // Validar cada archivo
     for (const file of files) {
-             const validation = CloudinaryService.validateImageFile(file);
-       if (!validation.isValid) {
-         setError(validation.error || 'Error de validación');
-         onError?.(validation.error || 'Error de validación');
-         return;
-       }
+      console.log('Processing file:', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: file.lastModified
+      });
+
+      const validation = CloudinaryService.validateImageFile(file);
+      if (!validation.isValid) {
+        console.error('File validation failed:', validation.error);
+        setError(validation.error || 'Error de validación');
+        onError?.(validation.error || 'Error de validación');
+        return;
+      }
 
       if (file.size > maxSize * 1024 * 1024) {
         const errorMsg = `El archivo ${file.name} es demasiado grande. Máximo ${maxSize}MB`;
@@ -93,19 +106,31 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       // Comprimir imágenes si es necesario
       const compressedFiles = await Promise.all(
-        files.map(file => CloudinaryService.compressImage(file))
+        files.map(async (file) => {
+          try {
+            return await CloudinaryService.compressImage(file);
+          } catch (error) {
+            console.warn('Error comprimiendo imagen, usando original:', error);
+            return file; // Usar archivo original si falla la compresión
+          }
+        })
       );
 
       // Subir a Cloudinary
       const uploadPromises = compressedFiles.map(async (file, index) => {
-        const response = await CloudinaryService.uploadImage(file, {
-          folder: `${folder}/${new Date().getFullYear()}/${new Date().getMonth() + 1}`
-        });
-        
-        // Simular progreso
-        setUploadProgress(((index + 1) / files.length) * 100);
-        
-        return response;
+        try {
+          const response = await CloudinaryService.uploadImage(file, {
+            folder: `${folder}/${new Date().getFullYear()}/${new Date().getMonth() + 1}`
+          });
+          
+          // Simular progreso
+          setUploadProgress(((index + 1) / files.length) * 100);
+          
+          return response;
+        } catch (error) {
+          console.error('Error uploading individual file:', file.name, error);
+          throw error;
+        }
       });
 
       const responses = await Promise.all(uploadPromises);
@@ -208,6 +233,35 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 {Math.round(uploadProgress)}% completado
               </p>
             </>
+          ) : showMainImage && uploadedImages.length > 0 ? (
+            <>
+              <div className="relative w-32 h-32 mx-auto">
+                <Image
+                  src={CloudinaryService.getThumbnailUrl(uploadedImages[0].public_id, 128)}
+                  alt="Imagen principal"
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-cover rounded-lg"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onRemove) {
+                      onRemove(uploadedImages[0].public_id);
+                    }
+                  }}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                >
+                  <XMarkIcon className="w-3 h-3" />
+                </button>
+              </div>
+              <p className="text-sm text-green-600 font-medium">
+                ✓ Imagen subida correctamente
+              </p>
+              <p className="text-xs text-gray-500">
+                Haz clic para cambiar la imagen
+              </p>
+            </>
           ) : (
             <>
               <PhotoIcon className="w-8 h-8 text-gray-400 mx-auto" />
@@ -219,7 +273,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   {multiple ? `Máximo ${maxFiles} archivos` : 'Un archivo'} • Máximo {maxSize}MB cada uno
                 </p>
                 <p className="text-xs text-gray-500">
-                  Formatos: JPEG, PNG, WebP, GIF
+                  Formatos: JPEG, PNG, WebP, GIF, HEIC, HEIF, AVIF
                 </p>
               </div>
             </>
@@ -246,9 +300,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {previewUrls.map((url, index) => (
             <div key={index} className="relative group">
-              <img
+              <Image
                 src={url}
                 alt={`Preview ${index + 1}`}
+                width={96}
+                height={96}
                 className="w-full h-24 object-cover rounded-md"
               />
               <button
@@ -269,9 +325,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {(externalUploadedImages || uploadedImages).map((image, index) => (
               <div key={index} className="relative group">
-                <img
-                  src={CloudinaryService.getThumbnailUrl(image.public_id, 150)}
+                <Image
+                  src={image.secure_url || CloudinaryService.getThumbnailUrl(image.public_id, 150)}
                   alt={`Uploaded ${index + 1}`}
+                  width={150}
+                  height={150}
                   className="w-full h-24 object-cover rounded-md"
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 rounded-md flex items-center justify-center">
@@ -297,8 +355,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </div>
       )}
 
-      {/* Botón manual */}
-      {!isUploading && (
+      {/* Botón manual - solo para múltiples imágenes */}
+      {!isUploading && multiple && (
         <Button
           type="button"
           variant="outline"
@@ -307,7 +365,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           className="w-full"
         >
           <PhotoIcon className="w-4 h-4 mr-2" />
-          Seleccionar {multiple ? 'Imágenes' : 'Imagen'}
+          Seleccionar Imágenes
         </Button>
       )}
     </div>

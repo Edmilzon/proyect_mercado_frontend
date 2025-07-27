@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -16,7 +17,8 @@ import {
   MapPinIcon,
   PencilIcon,
   CheckIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChatBubbleLeftIcon
 } from '@heroicons/react/24/outline';
 
 export default function ProfilePage() {
@@ -112,7 +114,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
                   <Button
                     onClick={() => setIsEditing(!isEditing)}
                     className="w-full"
@@ -130,6 +132,16 @@ export default function ProfilePage() {
                       </>
                     )}
                   </Button>
+                  
+                  <Link href="/profile/reviews">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <ChatBubbleLeftIcon className="w-4 h-4 mr-2" />
+                      Mis Reseñas
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </div>

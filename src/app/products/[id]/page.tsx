@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,6 +11,7 @@ import Navbar from '@/components/layout/Navbar';
 import { productsService } from '@/services/products';
 import { cartService } from '@/services/cart';
 import { Producto, ImagenProducto } from '@/types';
+import { API_ENDPOINTS } from '@/constants';
 import { 
   ArrowLeftIcon,
   StarIcon,
@@ -20,7 +23,8 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 
 export default function ProductDetailPage() {
@@ -46,7 +50,57 @@ export default function ProductDetailPage() {
   const loadProduct = async () => {
     try {
       setIsLoading(true);
+      console.log('Loading product with ID:', productId);
+      
       const productData = await productsService.getProductById(productId);
+      console.log('Product data loaded:', productData);
+      console.log('Main image URL:', productData?.url_imagen_principal);
+      
+      // Cargar imágenes adicionales del producto
+      let additionalImages: ImagenProducto[] = [];
+      try {
+        console.log('Loading additional images from:', API_ENDPOINTS.PRODUCTS.IMAGES(productId));
+        additionalImages = await productsService.getProductImages(productId);
+        console.log('Additional images loaded:', additionalImages);
+      } catch (error) {
+        console.log('No additional images found or error loading them:', error);
+      }
+      
+      // Combinar imagen principal con imágenes adicionales
+      if (productData) {
+        const allImages: ImagenProducto[] = [];
+        
+        // Agregar imagen principal si existe
+        if (productData.url_imagen_principal) {
+          console.log('Adding main image:', productData.url_imagen_principal);
+          allImages.push({
+            imagen_id: `main-${productData.producto_id}`,
+            url_imagen: productData.url_imagen_principal,
+            producto_id: productData.producto_id,
+            orden_indice: 0,
+            creado_at: ''
+          });
+        }
+        
+        // Agregar imágenes adicionales
+        additionalImages.forEach((img, index) => {
+          console.log('Adding additional image:', img.url_imagen);
+          allImages.push({
+            ...img,
+            orden_indice: img.orden_indice || index + 1
+          });
+        });
+        
+        // Ordenar por orden_indice
+        allImages.sort((a, b) => (a.orden_indice || 0) - (b.orden_indice || 0));
+        
+        // Asignar las imágenes combinadas al producto
+        productData.imagenes = allImages;
+        
+        console.log('Final combined images:', allImages);
+        console.log('Total images count:', allImages.length);
+      }
+      
       setProduct(productData);
     } catch (error) {
       console.error('Error loading product:', error);
@@ -79,6 +133,16 @@ export default function ProductDetailPage() {
       style: 'currency',
       currency: 'BOB'
     }).format(price);
+  };
+
+  const isValidImageUrl = (url: string) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const getDiscountPercentage = () => {
@@ -137,9 +201,6 @@ export default function ProductDetailPage() {
   }
 
   const allImages = product.imagenes || [];
-  if (product.url_imagen_principal) {
-    allImages.unshift({ imagen_id: 'main', url_imagen: product.url_imagen_principal, producto_id: product.producto_id, orden_indice: 0, creado_at: '' });
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -164,11 +225,13 @@ export default function ProductDetailPage() {
             <div className="space-y-4">
               {/* Main Image */}
               <div className="relative aspect-square bg-white rounded-lg overflow-hidden">
-                {allImages.length > 0 ? (
+                {allImages.length > 0 && allImages[selectedImageIndex]?.url_imagen && isValidImageUrl(allImages[selectedImageIndex].url_imagen) ? (
                   <>
-                    <img
-                      src={allImages[selectedImageIndex]?.url_imagen}
+                    <Image
+                      src={allImages[selectedImageIndex].url_imagen}
                       alt={product.nombre}
+                      width={600}
+                      height={600}
                       className="w-full h-full object-cover"
                     />
                     
@@ -202,17 +265,25 @@ export default function ProductDetailPage() {
                 <div className="grid grid-cols-5 gap-2">
                   {allImages.map((image, index) => (
                     <button
-                      key={image.imagen_id}
+                      key={`${image.imagen_id}-${index}`}
                       onClick={() => setSelectedImageIndex(index)}
                       className={`aspect-square rounded-lg overflow-hidden border-2 ${
                         index === selectedImageIndex ? 'border-blue-500' : 'border-gray-200'
                       }`}
                     >
-                      <img
-                        src={image.url_imagen}
-                        alt={`${product.nombre} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
+                      {image.url_imagen && isValidImageUrl(image.url_imagen) ? (
+                        <Image
+                          src={image.url_imagen}
+                          alt={`${product.nombre} ${index + 1}`}
+                          width={100}
+                          height={100}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <PhotoIcon className="w-8 h-8 text-gray-400" />
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -364,29 +435,69 @@ export default function ProductDetailPage() {
 
           {/* Seller Information */}
           <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Información del vendedor</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Información del vendedor</h3>
+              {product.vendedor?.vendedor_id && (
+                <Link
+                  href={`/seller/${product.vendedor.vendedor_id}/reviews`}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  <StarIcon className="w-4 h-4 mr-2" />
+                  Ver Reseñas
+                </Link>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-center">
                 <UserIcon className="w-5 h-5 text-gray-400 mr-3" />
                 <div>
                   <p className="font-medium text-gray-900">Vendedor</p>
-                  <p className="text-sm text-gray-600">Nombre del vendedor</p>
+                  <p className="text-sm text-gray-600">
+                    {product.vendedor?.nombre} {product.vendedor?.apellido}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center">
                 <MapPinIcon className="w-5 h-5 text-gray-400 mr-3" />
                 <div>
                   <p className="font-medium text-gray-900">Ubicación</p>
-                  <p className="text-sm text-gray-600">Ciudad, Bolivia</p>
+                  <p className="text-sm text-gray-600">Bolivia</p>
                 </div>
               </div>
               <div className="flex items-center">
                 <StarIcon className="w-5 h-5 text-gray-400 mr-3" />
                 <div>
                   <p className="font-medium text-gray-900">Calificación</p>
-                  <p className="text-sm text-gray-600">4.5/5 (25 reseñas)</p>
+                  <p className="text-sm text-gray-600">
+                    {product.vendedor?.calificacion_promedio ? 
+                      `${product.vendedor.calificacion_promedio}/5` : 
+                      'Sin calificar'
+                    }
+                  </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Reviews Section */}
+          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                <StarIcon className="w-6 h-6 text-yellow-400 mr-2" />
+                Reseñas del vendedor
+              </h3>
+              <Link href={`/seller/reviews`}>
+                <Button variant="outline" size="sm">
+                  Ver todas las reseñas
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="text-center py-8">
+              <StarIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">
+                Las reseñas aparecerán aquí cuando los clientes califiquen al vendedor
+              </p>
             </div>
           </div>
         </div>

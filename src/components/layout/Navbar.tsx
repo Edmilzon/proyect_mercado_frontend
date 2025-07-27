@@ -16,7 +16,10 @@ import {
   PhoneIcon,
   CogIcon,
   ArrowRightOnRectangleIcon,
-  ShoppingCartIcon
+  ShoppingCartIcon,
+  StarIcon,
+  ChatBubbleLeftIcon,
+  TruckIcon
 } from '@heroicons/react/24/outline';
 
 
@@ -172,15 +175,52 @@ export const Navbar: React.FC = () => {
                     </Link>
                     
                     {user?.rol === 'vendedor' && (
-                      <Link
-                        href="/seller/dashboard"
-                        onClick={() => setIsDropdownOpen(false)}
-                        className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
-                      >
-                        <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                        Panel Vendedor
-                      </Link>
+                      <>
+                        <Link
+                          href="/seller/dashboard"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                        >
+                          <ShoppingBagIcon className="w-4 h-4 mr-2" />
+                          Panel Vendedor
+                        </Link>
+                        <Link
+                          href="/seller/reviews"
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                        >
+                          <StarIcon className="w-4 h-4 mr-2" />
+                          Mis Reseñas
+                        </Link>
+                      </>
                     )}
+                    
+                    <Link
+                      href="/profile/reviews"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      <ChatBubbleLeftIcon className="w-4 h-4 mr-2" />
+                      Mis Reseñas
+                    </Link>
+                    
+                    <Link
+                      href="/chat"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      <ChatBubbleLeftIcon className="w-4 h-4 mr-2" />
+                      Chat
+                    </Link>
+                    
+                    <Link
+                      href="/logistics"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      <TruckIcon className="w-4 h-4 mr-2" />
+                      Logística
+                    </Link>
                     
                     <div className="border-t border-gray-100">
                       <button

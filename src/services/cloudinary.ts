@@ -104,19 +104,42 @@ export class CloudinaryService {
    */
   static validateImageFile(file: File): { isValid: boolean; error?: string } {
     const maxSize = 10 * 1024 * 1024; // 10MB
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedTypes = [
+      'image/jpeg', 
+      'image/jpg', 
+      'image/png', 
+      'image/webp', 
+      'image/gif',
+      'image/heic',
+      'image/heif',
+      'image/avif'
+    ];
 
-    if (!allowedTypes.includes(file.type)) {
-      return {
-        isValid: false,
-        error: 'Solo se permiten archivos de imagen (JPEG, PNG, WebP, GIF)'
-      };
+    console.log('Validating file:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      allowedTypes
+    });
+
+    // Verificar si el tipo está en la lista permitida
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      // Verificar también por extensión del archivo
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'avif'];
+      
+      if (!allowedExtensions.includes(extension || '')) {
+        return {
+          isValid: false,
+          error: `Tipo de archivo no permitido: ${file.type}. Solo se permiten archivos de imagen (JPEG, PNG, WebP, GIF, HEIC, HEIF, AVIF)`
+        };
+      }
     }
 
     if (file.size > maxSize) {
       return {
         isValid: false,
-        error: 'El archivo es demasiado grande. Máximo 10MB'
+        error: `El archivo ${file.name} es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). Máximo 10MB`
       };
     }
 

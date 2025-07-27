@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -93,12 +94,21 @@ export default function CartPage() {
   const loadZones = async () => {
     try {
       const zonesData = await zonesService.getActiveZones();
-      setZones(zonesData);
-      if (zonesData.length > 0) {
-        setSelectedZone(zonesData[0].zona_id);
+      console.log('Zones loaded:', zonesData);
+      
+      // Asegurar que zonesData sea un array
+      if (Array.isArray(zonesData)) {
+        setZones(zonesData);
+        if (zonesData.length > 0) {
+          setSelectedZone(zonesData[0].zona_id);
+        }
+      } else {
+        console.warn('Zones data is not an array:', zonesData);
+        setZones([]);
       }
     } catch (error) {
       console.error('Error loading zones:', error);
+      setZones([]);
     }
   };
 
@@ -145,6 +155,16 @@ export default function CartPage() {
       style: 'currency',
       currency: 'BOB'
     }).format(price);
+  };
+
+  const isValidImageUrl = (url: string) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const handleCheckout = () => {
@@ -236,10 +256,12 @@ export default function CartPage() {
                         <div className="flex items-center space-x-4">
                           {/* Product Image */}
                           <div className="flex-shrink-0 w-20 h-20">
-                            {product.url_imagen_principal ? (
-                              <img
+                            {product.url_imagen_principal && isValidImageUrl(product.url_imagen_principal) ? (
+                              <Image
                                 src={product.url_imagen_principal}
                                 alt={product.nombre}
+                                width={80}
+                                height={80}
                                 className="w-full h-full object-cover rounded-md"
                               />
                             ) : (
@@ -323,11 +345,18 @@ export default function CartPage() {
                     onChange={(e) => setSelectedZone(e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
-                    {zones.map((zone) => (
-                      <option key={zone.zona_id} value={zone.zona_id}>
-                        {zone.nombre} - {formatPrice(zone.tarifa_envio)}
+                    <option value="">Seleccionar zona de entrega</option>
+                    {Array.isArray(zones) && zones.length > 0 ? (
+                      zones.map((zone) => (
+                        <option key={zone.zona_id} value={zone.zona_id}>
+                          {zone.nombre} - {formatPrice(zone.tarifa_envio)}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        No hay zonas disponibles
                       </option>
-                    ))}
+                    )}
                   </select>
                 </div>
 

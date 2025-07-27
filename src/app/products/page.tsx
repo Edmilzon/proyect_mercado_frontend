@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -86,6 +87,16 @@ export default function ProductsPage() {
 
       const productsData = await productsService.searchProducts(params.toString());
       
+      // Debug: verificar URLs de imágenes
+      if (productsData) {
+        productsData.forEach(product => {
+          if (product.url_imagen_principal) {
+            console.log('Product image URL:', product.url_imagen_principal);
+            console.log('Is valid URL:', isValidImageUrl(product.url_imagen_principal));
+          }
+        });
+      }
+      
       if (currentPage === 1) {
         setProducts(productsData);
       } else {
@@ -130,6 +141,16 @@ export default function ProductsPage() {
   const getCategoryName = (categoryId: string) => {
     const category = categories.find(cat => cat.categoria_id === categoryId);
     return category?.nombre || 'Sin categoría';
+  };
+
+  const isValidImageUrl = (url: string) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   return (
@@ -302,12 +323,20 @@ export default function ProductsPage() {
                   >
                     {/* Product Image */}
                     <div className={viewMode === 'list' ? 'w-48 h-32' : 'h-48'}>
-                      {product.url_imagen_principal ? (
-                        <img
-                          src={product.url_imagen_principal}
-                          alt={product.nombre}
-                          className="w-full h-full object-cover"
-                        />
+                      {product.url_imagen_principal && isValidImageUrl(product.url_imagen_principal) ? (
+                        <div className="relative w-full h-full">
+                          <Image
+                            src={product.url_imagen_principal}
+                            alt={product.nombre}
+                            width={400}
+                            height={300}
+                            className="w-full h-full object-cover"
+                          />
+                          {/* Fallback placeholder */}
+                          <div className="absolute inset-0 w-full h-full bg-gray-200 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <ShoppingCartIcon className="w-12 h-12 text-gray-400" />
+                          </div>
+                        </div>
                       ) : (
                         <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                           <ShoppingCartIcon className="w-12 h-12 text-gray-400" />

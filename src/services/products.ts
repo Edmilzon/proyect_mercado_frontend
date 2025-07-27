@@ -1,6 +1,7 @@
 import { ApiService } from './api';
 import { API_ENDPOINTS } from '@/constants';
 import { Producto } from '@/types';
+import { ImagenProducto } from '@/types';
 
 export class ProductsService extends ApiService {
   async getProducts(): Promise<Producto[]> {
@@ -79,6 +80,28 @@ export class ProductsService extends ApiService {
     } catch (error) {
       console.error('Error updating product stock:', error);
       throw error;
+    }
+  }
+
+  async addProductImage(productId: string, imageData: {
+    url_imagen: string;
+    orden_indice: number;
+  }): Promise<void> {
+    try {
+      await this.post(API_ENDPOINTS.PRODUCTS.IMAGES(productId), imageData);
+    } catch (error) {
+      console.error('Error adding product image:', error);
+      throw error;
+    }
+  }
+
+  async getProductImages(productId: string): Promise<ImagenProducto[]> {
+    try {
+      const response = await this.get<{ imagenes: ImagenProducto[] }>(API_ENDPOINTS.PRODUCTS.IMAGES(productId));
+      return response.imagenes || [];
+    } catch (error) {
+      console.error('Error getting product images:', error);
+      return [];
     }
   }
 }
