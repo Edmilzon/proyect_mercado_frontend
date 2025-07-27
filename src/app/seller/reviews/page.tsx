@@ -1,115 +1,148 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { reviewsService } from '@/services/reviews';
-import { ReviewCard } from '@/components/reviews/ReviewCard';
-import { StarRating } from '@/components/ui/StarRating';
-import { Button } from '@/components/ui/Button';
-import Navbar from '@/components/layout/Navbar';
-import { Resena, CalificacionVendedor } from '@/types';
-import { 
-  ArrowLeftIcon,
-  StarIcon,
-  FunnelIcon,
-  ChatBubbleLeftIcon
-} from '@heroicons/react/24/outline';
+import { sellerService } from '@/services/seller';
+import { StarIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+
+interface Review {
+  resena_id: string;
+  pedido_id: string;
+  comprador_id: string;
+  vendedor_id: string;
+  calificacion: number;
+  comentario?: string;
+  fecha_resena: string;
+  respuesta_vendedor?: string;
+  fecha_respuesta?: string;
+  comprador?: {
+    nombre: string;
+    apellido: string;
+    email: string;
+  };
+  pedido?: {
+    pedido_id: string;
+    fecha_pedido: string;
+  };
+}
 
 export default function SellerReviewsPage() {
-  const { user, isAuthenticated } = useAuth();
-  const router = useRouter();
-  const [reviews, setReviews] = useState<Resena[]>([]);
-  const [rating, setRating] = useState<CalificacionVendedor | null>(null);
+  const { user } = useAuth();
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedRating, setSelectedRating] = useState<number | null>(null);
-  const [filteredReviews, setFilteredReviews] = useState<Resena[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [responseText, setResponseText] = useState('');
+  const [isResponding, setIsResponding] = useState(false);
 
-  // Redirigir si no está autenticado o no es vendedor
-  React.useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-    } else if (user && user.rol !== 'vendedor') {
-      router.push('/');
-    }
-  }, [isAuthenticated, user, router]);
-
-  // Cargar reseñas y calificación
   useEffect(() => {
     if (user && user.rol === 'vendedor') {
-      loadData();
+      loadReviews();
     }
   }, [user]);
 
-  // Filtrar reseñas cuando cambia el filtro
-  useEffect(() => {
-    if (selectedRating === null) {
-      setFilteredReviews(reviews);
-    } else {
-      setFilteredReviews(reviews.filter(review => review.calificacion === selectedRating));
-    }
-  }, [reviews, selectedRating]);
-
-  const loadData = async () => {
+  const loadReviews = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading data for user:', user!.usuario_id);
-      
-      // Cargar reseñas del vendedor y calificación
-      const [reviewsData, ratingData] = await Promise.all([
-        reviewsService.getSellerReviews(user!.usuario_id),
-        reviewsService.getSellerRating(user!.usuario_id)
-      ]);
-      
-      console.log('Reviews loaded:', reviewsData);
-      console.log('Rating loaded:', ratingData);
-      
+      setError(null);
+
+      const reviewsData = await sellerService.getSellerReviews(user!.usuario_id);
       setReviews(reviewsData);
-      setRating(ratingData);
     } catch (error) {
       console.error('Error loading reviews:', error);
-      setReviews([]);
-      setRating(null);
+      setError('Error al cargar las reseñas');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleReviewUpdate = () => {
-    loadData(); // Recargar datos
+  const respondToReview = async (reviewId: string) => {
+    if (!responseText.trim()) {
+      setError('Debes escribir una respuesta');
+      return;
+    }
+
+    try {
+      setIsResponding(true);
+      await sellerService.respondToReview(reviewId, responseText);
+      setResponseText('');
+      setSelectedReview(null);
+      await loadReviews(); // Recargar reseñas
+    } catch (error) {
+      console.error('Error responding to review:', error);
+      setError('Error al responder a la reseña');
+    } finally {
+      setIsResponding(false);
+    }
   };
 
-  const handleReviewDelete = () => {
-    loadData(); // Recargar datos
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
-  const getRatingPercentage = (starCount: number) => {
-    if (!rating || rating.total_resenas === 0) return 0;
-    return Math.round((rating.distribucion[starCount as keyof typeof rating.distribucion] / rating.total_resenas) * 100);
-  };
-
-  if (!user || user.rol !== 'vendedor') {
+  const renderStars = (rating: number) => {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <StarIcon
+            key={star}
+            className={`w-5 h-5 ${
+              star <= rating
+                ? 'text-yellow-400 fill-current'
+                : 'text-gray-300'
+            }`}
+          />
+        ))}
+        <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>
+      </div>
+    );
+  };
+
+  const getAverageRating = () => {
+    if (reviews.length === 0) return 0;
+    const total = reviews.reduce((sum, review) => sum + review.calificacion, 0);
+    return (total / reviews.length).toFixed(1);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600">Solo los vendedores pueden acceder a esta página</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando reseñas...</p>
         </div>
       </div>
     );
   }
 
-  if (isLoading) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="py-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-4">Cargando reseñas...</p>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={loadReviews}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.rol !== 'vendedor') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Denegado</h2>
+          <p className="text-gray-600">Solo los vendedores pueden acceder a esta página.</p>
         </div>
       </div>
     );
@@ -117,133 +150,160 @@ export default function SellerReviewsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center mb-4">
-              <button
-                onClick={() => router.push('/seller/dashboard')}
-                className="mr-4 p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeftIcon className="w-5 h-5" />
-              </button>
-              <h1 className="text-3xl font-bold text-gray-900">Mis Reseñas</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Reseñas de Clientes</h1>
+          <p className="text-gray-600 mt-2">
+            Gestiona las reseñas y comentarios de tus clientes
+          </p>
+        </div>
+
+        {/* Estadísticas */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900">{reviews.length}</div>
+              <div className="text-sm text-gray-600">Total de Reseñas</div>
             </div>
-            <p className="text-gray-600">
-              Gestiona las reseñas de tus clientes
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                      {/* Rating Summary */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                <StarIcon className="w-6 h-6 text-yellow-400 mr-2" />
-                Calificación General
-              </h2>
-
-              {rating ? (
-                <div className="space-y-4">
-                  {/* Overall Rating */}
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-gray-900 mb-2">
-                      {rating.calificacion_promedio.toFixed(1)}
-                    </div>
-                    <StarRating
-                      rating={Math.round(rating.calificacion_promedio)}
-                      size="lg"
-                      showValue={false}
-                    />
-                    <p className="text-sm text-gray-600 mt-2">
-                      {rating.total_resenas} reseñas
-                    </p>
-                  </div>
-
-                  {/* Rating Distribution */}
-                  <div className="space-y-2">
-                    {[5, 4, 3, 2, 1].map((stars) => (
-                      <div key={stars} className="flex items-center">
-                        <span className="text-sm text-gray-600 w-8">{stars}★</span>
-                        <div className="flex-1 mx-2 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-yellow-400 h-2 rounded-full"
-                            style={{ width: `${getRatingPercentage(stars)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-gray-600 w-12">
-                          {rating.distribucion[stars as keyof typeof rating.distribucion]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <StarIcon className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500">No hay calificación disponible</p>
-                  <p className="text-xs text-gray-400 mt-1">El sistema de calificación está en mantenimiento</p>
-                </div>
-              )}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900">{getAverageRating()}</div>
+              <div className="text-sm text-gray-600">Calificación Promedio</div>
             </div>
-          </div>
-
-            {/* Reviews List */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <ChatBubbleLeftIcon className="w-6 h-6 mr-2" />
-                    Reseñas ({filteredReviews.length})
-                  </h2>
-
-                  {/* Rating Filter */}
-                  <div className="flex items-center space-x-2">
-                    <FunnelIcon className="w-4 h-4 text-gray-500" />
-                    <select
-                      value={selectedRating || ''}
-                      onChange={(e) => setSelectedRating(e.target.value ? Number(e.target.value) : null)}
-                      className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Todas las calificaciones</option>
-                      <option value="5">5 estrellas</option>
-                      <option value="4">4 estrellas</option>
-                      <option value="3">3 estrellas</option>
-                      <option value="2">2 estrellas</option>
-                      <option value="1">1 estrella</option>
-                    </select>
-                  </div>
-                </div>
-
-                {filteredReviews.length > 0 ? (
-                  <div className="space-y-6">
-                    {filteredReviews.map((review) => (
-                      <ReviewCard
-                        key={review.resena_id}
-                        review={review}
-                        currentUserId={user.usuario_id}
-                        onUpdate={handleReviewUpdate}
-                        onDelete={handleReviewDelete}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <ChatBubbleLeftIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">
-                      {selectedRating 
-                        ? `No hay reseñas con ${selectedRating} estrella${selectedRating > 1 ? 's' : ''}`
-                        : 'No hay reseñas aún'
-                      }
-                    </p>
-                  </div>
-                )}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900">
+                {reviews.filter(r => !r.respuesta_vendedor).length}
               </div>
+              <div className="text-sm text-gray-600">Sin Responder</div>
             </div>
           </div>
         </div>
+
+        {/* Lista de Reseñas */}
+        <div className="space-y-6">
+          {reviews.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">⭐</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay reseñas</h3>
+              <p className="text-gray-600">
+                Aún no has recibido reseñas de tus clientes.
+              </p>
+            </div>
+          ) : (
+            reviews.map((review) => (
+              <div key={review.resena_id} className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold">
+                          {review.comprador?.nombre?.charAt(0) || 'C'}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {review.comprador?.nombre} {review.comprador?.apellido}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {formatDate(review.fecha_resena)}
+                        </p>
+                      </div>
+                    </div>
+                    {renderStars(review.calificacion)}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Pedido #{review.pedido_id?.slice(0, 8) || 'N/A'}
+                  </div>
+                </div>
+
+                {/* Comentario del Cliente */}
+                {review.comentario && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Comentario</h4>
+                    <p className="text-gray-700 bg-gray-50 p-3 rounded">
+                      {review.comentario}
+                    </p>
+                  </div>
+                )}
+
+                {/* Respuesta del Vendedor */}
+                {review.respuesta_vendedor && (
+                  <div className="mb-4">
+                    <h4 className="font-medium text-gray-900 mb-2">Tu Respuesta</h4>
+                    <p className="text-gray-700 bg-blue-50 p-3 rounded">
+                      {review.respuesta_vendedor}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Respondido el {review.fecha_respuesta && formatDate(review.fecha_respuesta)}
+                    </p>
+                  </div>
+                )}
+
+                {/* Botón para Responder */}
+                {!review.respuesta_vendedor && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setSelectedReview(review)}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      <ChatBubbleLeftIcon className="w-4 h-4 mr-2" />
+                      Responder
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Modal de Respuesta */}
+        {selectedReview && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Responder a la reseña
+                </h3>
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Reseña de {selectedReview.comprador?.nombre} {selectedReview.comprador?.apellido}:
+                  </p>
+                  <div className="bg-gray-50 p-3 rounded mb-4">
+                    {renderStars(selectedReview.calificacion)}
+                    {selectedReview.comentario && (
+                      <p className="text-gray-700 mt-2">{selectedReview.comentario}</p>
+                    )}
+                  </div>
+                </div>
+                <textarea
+                  value={responseText}
+                  onChange={(e) => setResponseText(e.target.value)}
+                  placeholder="Escribe tu respuesta..."
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  rows={4}
+                />
+                <div className="flex justify-end space-x-3 mt-4">
+                  <button
+                    onClick={() => {
+                      setSelectedReview(null);
+                      setResponseText('');
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => respondToReview(selectedReview.resena_id)}
+                    disabled={isResponding || !responseText.trim()}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isResponding ? 'Enviando...' : 'Enviar Respuesta'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -104,6 +104,16 @@ export class ProductsService extends ApiService {
       return [];
     }
   }
+
+  async getProductsBySeller(sellerId: string): Promise<Producto[]> {
+    try {
+      const response = await this.get<{ productos: Producto[] }>(`${API_ENDPOINTS.PRODUCTS.BASE}?vendedor_id=${sellerId}`);
+      return response.productos || [];
+    } catch (error) {
+      console.error('Error getting products by seller:', error);
+      return [];
+    }
+  }
 }
 
 export const productsService = new ProductsService(); 

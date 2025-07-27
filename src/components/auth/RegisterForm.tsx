@@ -20,9 +20,10 @@ import {
 
 interface RegisterFormProps {
   onSuccess?: () => void;
+  onSwitchToLogin?: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin }) => {
   const router = useRouter();
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -99,7 +100,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         setShowSellerForm(true);
       } else {
         // Login automático para compradores
-        await login(formData.email, formData.password);
+        await login({
+          email: formData.email,
+          password: formData.password
+        });
         onSuccess?.();
         router.push('/');
       }
@@ -116,21 +120,23 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     setError(null);
 
     try {
-      await sellerService.registerSeller({
-        vendedor_id: registeredUser.usuario_id,
+      // Usar la nueva API de conversión a vendedor (API 7)
+      await sellerService.convertToSeller({
+        usuario_id: registeredUser.usuario_id,
         numero_identificacion: sellerData.numero_identificacion,
         estado_onboarding: 'pendiente',
-        latitud_actual: sellerData.latitud_actual,
-        longitud_actual: sellerData.longitud_actual,
         zona_asignada_id: sellerData.zona_asignada_id || undefined
       });
 
       // Login automático
-      await login(formData.email, formData.password);
+      await login({
+        email: formData.email,
+        password: formData.password
+      });
       onSuccess?.();
       router.push('/seller/dashboard');
     } catch (error: any) {
-      setError(error.message || 'Error al registrar datos de vendedor');
+      setError(error.message || 'Error al convertir a vendedor');
     } finally {
       setIsLoading(false);
     }
@@ -158,74 +164,133 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     return (
       <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
         <div className="text-center mb-6">
-          <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900">¡Registro Exitoso!</h2>
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Configuración de Vendedor</h2>
           <p className="text-gray-600 mt-2">
-            Completa los datos adicionales para activar tu cuenta de vendedor
+            Completa los datos requeridos para activar tu cuenta de vendedor
           </p>
         </div>
 
-        <form onSubmit={handleSellerSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Número de Identificación
-            </label>
-            <Input
-              type="text"
-              name="numero_identificacion"
-              value={sellerData.numero_identificacion}
-              onChange={handleSellerInputChange}
-              placeholder="12345678"
-              required
-              icon={<IdentificationIcon className="w-5 h-5" />}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ubicación Actual
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                type="number"
-                name="latitud_actual"
-                value={sellerData.latitud_actual}
-                onChange={handleSellerInputChange}
-                placeholder="Latitud"
-                step="any"
-                required
-              />
-              <Input
-                type="number"
-                name="longitud_actual"
-                value={sellerData.longitud_actual}
-                onChange={handleSellerInputChange}
-                placeholder="Longitud"
-                step="any"
-                required
-              />
+        <form onSubmit={handleSellerSubmit} className="space-y-6">
+          {/* Información del Usuario */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Información del Usuario</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre Completo
+                </label>
+                <p className="text-sm text-gray-600 bg-white p-2 rounded border">
+                  {formData.nombre} {formData.apellido}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
+                </label>
+                <p className="text-sm text-gray-600 bg-white p-2 rounded border">
+                  {formData.email}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Teléfono
+                </label>
+                <p className="text-sm text-gray-600 bg-white p-2 rounded border">
+                  {formData.numero_telefono}
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={getCurrentLocation}
-              className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-            >
-              <MapPinIcon className="w-4 h-4 mr-1" />
-              Obtener ubicación automáticamente
-            </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Zona de Entrega (Opcional)
-            </label>
-            <Input
-              type="text"
-              name="zona_asignada_id"
-              value={sellerData.zona_asignada_id}
-              onChange={handleSellerInputChange}
-              placeholder="ID de zona (se asignará automáticamente)"
-            />
+          {/* Datos de Vendedor */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">Datos de Vendedor</h3>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Número de Identificación *
+              </label>
+              <Input
+                type="text"
+                name="numero_identificacion"
+                value={sellerData.numero_identificacion}
+                onChange={handleSellerInputChange}
+                placeholder="Ej: 12345678"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                CI, DNI, pasaporte u otro documento oficial
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ubicación de Trabajo *
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="number"
+                  name="latitud_actual"
+                  value={sellerData.latitud_actual}
+                  onChange={handleSellerInputChange}
+                  placeholder="Latitud"
+                  step="any"
+                  required
+                />
+                <Input
+                  type="number"
+                  name="longitud_actual"
+                  value={sellerData.longitud_actual}
+                  onChange={handleSellerInputChange}
+                  placeholder="Longitud"
+                  step="any"
+                  required
+                />
+              </div>
+              <button
+                type="button"
+                onClick={getCurrentLocation}
+                className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
+              >
+                <MapPinIcon className="w-4 h-4 mr-1" />
+                Obtener ubicación automáticamente
+              </button>
+              <p className="text-xs text-gray-500 mt-1">
+                Esta ubicación se usará para calcular costos de envío
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Zona de Entrega
+              </label>
+              <Input
+                type="text"
+                name="zona_asignada_id"
+                value={sellerData.zona_asignada_id}
+                onChange={handleSellerInputChange}
+                placeholder="Se asignará automáticamente"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Opcional. Se asignará según tu ubicación
+              </p>
+            </div>
+          </div>
+
+          {/* Información Adicional */}
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">ℹ️ Información Importante</h4>
+            <ul className="text-xs text-blue-800 space-y-1">
+              <li>• Tu cuenta será revisada por nuestro equipo</li>
+              <li>• Podrás empezar a vender una vez aprobada</li>
+              <li>• Recibirás notificaciones sobre el estado de tu cuenta</li>
+              <li>• Puedes completar tu perfil después del registro</li>
+            </ul>
           </div>
 
           {error && (
@@ -238,9 +303,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full"
+            className="w-full bg-blue-600 hover:bg-blue-700"
           >
-            {isLoading ? 'Completando registro...' : 'Completar Registro de Vendedor'}
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Completando registro...
+              </div>
+            ) : (
+              'Completar Registro de Vendedor'
+            )}
           </Button>
         </form>
       </div>
@@ -269,7 +341,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               onChange={handleInputChange}
               placeholder="Tu nombre"
               required
-              icon={<UserIcon className="w-5 h-5" />}
             />
           </div>
           <div>
@@ -283,7 +354,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               onChange={handleInputChange}
               placeholder="Tu apellido"
               required
-              icon={<UserIcon className="w-5 h-5" />}
             />
           </div>
         </div>
@@ -299,7 +369,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             onChange={handleInputChange}
             placeholder="tu@email.com"
             required
-            icon={<EnvelopeIcon className="w-5 h-5" />}
           />
         </div>
 
@@ -314,7 +383,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             onChange={handleInputChange}
             placeholder="71234567"
             required
-            icon={<PhoneIcon className="w-5 h-5" />}
           />
         </div>
 
@@ -329,7 +397,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             onChange={handleInputChange}
             placeholder="Mínimo 6 caracteres"
             required
-            icon={<LockClosedIcon className="w-5 h-5" />}
           />
         </div>
 
@@ -344,7 +411,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             onChange={handleInputChange}
             placeholder="Repite tu contraseña"
             required
-            icon={<LockClosedIcon className="w-5 h-5" />}
           />
         </div>
 
@@ -377,6 +443,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         >
           {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
         </Button>
+
+        {onSwitchToLogin && (
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              ¿Ya tienes una cuenta?{' '}
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Iniciar sesión
+              </button>
+            </p>
+          </div>
+        )}
       </form>
     </div>
   );

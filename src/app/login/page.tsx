@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import LoginForm from '@/components/auth/LoginForm';
-import RegisterForm from '@/components/auth/RegisterForm';
+import { RegisterForm } from '@/components/auth/RegisterForm';
 import { APP_CONFIG } from '@/constants';
 
 export default function LoginPage() {

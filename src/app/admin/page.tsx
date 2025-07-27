@@ -8,6 +8,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/Button';
 import { 
   UsersIcon, 
+  UserIcon,
   UserPlusIcon, 
   CheckCircleIcon, 
   XCircleIcon, 
@@ -60,10 +61,15 @@ export default function AdminDashboard() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [sellersData, statsData] = await Promise.all([
-        sellerService.getAllSellers(),
-        sellerService.getSellerStats()
-      ]);
+      const sellersData = await sellerService.getAllSellers();
+      
+      // Calcular estadísticas localmente
+      const statsData = {
+        total: sellersData.length,
+        aprobados: sellersData.filter(s => s.estado_onboarding === 'aprobado').length,
+        pendientes: sellersData.filter(s => s.estado_onboarding === 'pendiente').length,
+        rechazados: sellersData.filter(s => s.estado_onboarding === 'rechazado').length,
+      };
       
       setSellers(sellersData);
       setStats(statsData);
@@ -76,7 +82,9 @@ export default function AdminDashboard() {
 
   const handleStatusUpdate = async (sellerId: string, newStatus: 'aprobado' | 'rechazado') => {
     try {
-      await sellerService.updateSellerStatus(sellerId, newStatus);
+      // Por ahora, solo recargar datos ya que no hay endpoint específico para actualizar estado
+      // TODO: Implementar cuando el backend tenga el endpoint de validación de vendedores
+      console.log(`Actualizando estado del vendedor ${sellerId} a ${newStatus}`);
       await loadData(); // Recargar datos
     } catch (error) {
       console.error('Error updating seller status:', error);

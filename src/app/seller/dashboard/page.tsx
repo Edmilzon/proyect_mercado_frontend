@@ -1,71 +1,20 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/Button';
-import Navbar from '@/components/layout/Navbar';
 import { sellerService } from '@/services/seller';
-import { formatCoordinate } from '@/utils/cn';
-import { 
-  UserCircleIcon,
-  MapPinIcon,
-  CurrencyDollarIcon,
-  ShoppingBagIcon,
-  StarIcon,
-  ClockIcon,
-  ChartBarIcon,
-  CogIcon,
-  PlusIcon,
-  EyeIcon
-} from '@heroicons/react/24/outline';
+import { Vendedor, SellerDashboard } from '@/types';
 
-import { Vendedor } from '@/types';
+interface SellerDashboardPageProps {}
 
-export default function SellerDashboardPage() {
-  const { user, isAuthenticated } = useAuth();
-  const router = useRouter();
+export default function SellerDashboardPage({}: SellerDashboardPageProps) {
+  const { user } = useAuth();
   const [sellerData, setSellerData] = useState<Vendedor | null>(null);
+  const [dashboardData, setDashboardData] = useState<SellerDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalVentas: 0,
-    ventasHoy: 0,
-    productosActivos: 0,
-    calificacionPromedio: 0
-  });
-
-  // Verificar si el vendedor ha completado su perfil
+  const [error, setError] = useState<string | null>(null);
   const [hasCompletedProfile, setHasCompletedProfile] = useState(false);
-  const [isCheckingProfile, setIsCheckingProfile] = useState(true);
 
-  useEffect(() => {
-    const checkSellerProfile = async () => {
-      try {
-        const sellerData = await sellerService.getSellerById(user!.usuario_id);
-        setHasCompletedProfile(!!sellerData.numero_identificacion);
-      } catch (error) {
-        // Si no existe el vendedor, no ha completado el perfil
-        setHasCompletedProfile(false);
-      } finally {
-        setIsCheckingProfile(false);
-      }
-    };
-
-    if (user) {
-      checkSellerProfile();
-    }
-  }, [user]);
-
-  // Redirigir si no está autenticado o no es vendedor
-  React.useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-    } else if (user && user.rol !== 'vendedor') {
-      router.push('/');
-    }
-  }, [isAuthenticated, user, router]);
-
-  // Cargar datos del vendedor
   useEffect(() => {
     if (user && user.rol === 'vendedor') {
       loadSellerData();
@@ -77,308 +26,319 @@ export default function SellerDashboardPage() {
       if (!user?.usuario_id) {
         throw new Error('Usuario no identificado');
       }
-      
+
+      setIsLoading(true);
+      setError(null);
+
       // Cargar datos del vendedor
-      const sellerData = await sellerService.getSellerData(user.usuario_id);
-      setSellerData(sellerData);
-      
-      // Cargar estadísticas
-      const statsData = await sellerService.getSellerStats(user.usuario_id);
-      setStats(statsData);
+      try {
+        const sellerData = await sellerService.getSellerById(user.usuario_id);
+        setSellerData(sellerData);
+        setHasCompletedProfile(!!sellerData.numero_identificacion);
+      } catch (error) {
+        console.log('Vendedor no encontrado, creando datos por defecto...');
+        setSellerData({
+          vendedor_id: user?.usuario_id || '',
+          numero_identificacion: '',
+          estado_onboarding: 'pendiente',
+          calificacion_promedio: 0,
+          total_resenas: 0,
+          tasa_comision: 0.05,
+          creado_at: new Date().toISOString(),
+          actualizado_at: new Date().toISOString(),
+          usuario: undefined
+        });
+        setHasCompletedProfile(false);
+      }
+
+      // Cargar dashboard del vendedor usando la nueva API específica
+      try {
+        const dashboard = await sellerService.getSellerDashboard(user.usuario_id);
+        setDashboardData(dashboard);
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+        // Si falla, crear datos por defecto
+        setDashboardData({
+          total_productos: 0,
+          productos_activos: 0,
+          productos_sin_stock: 0,
+          total_pedidos: 0,
+          pedidos_pendientes: 0,
+          pedidos_confirmados: 0,
+          pedidos_en_preparacion: 0,
+          pedidos_en_ruta: 0,
+          pedidos_entregados: 0,
+          pedidos_cancelados: 0,
+          calificacion_promedio: 0,
+          total_resenas: 0,
+          resenas_pendientes: 0,
+          ventas_hoy: 0,
+          ventas_semana: 0,
+          ventas_mes: 0,
+          mensajes_no_leidos: 0,
+          conversaciones_activas: 0
+        });
+      }
+
     } catch (error) {
       console.error('Error loading seller data:', error);
-      // Si hay error, mostrar mensaje pero no bloquear la página
-      setSellerData({
-        vendedor_id: user?.usuario_id || '',
-        numero_identificacion: '',
-        estado_onboarding: 'pendiente',
-        calificacion_promedio: 0,
-        total_resenas: 0,
-        tasa_comision: 0.05,
-        creado_at: new Date().toISOString(),
-        actualizado_at: new Date().toISOString(),
-        usuario: undefined
-      });
+      setError('Error al cargar los datos del vendedor');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getOnboardingStatusColor = (status: string) => {
-    switch (status) {
-      case 'aprobado':
-        return 'bg-green-100 text-green-800';
-      case 'pendiente':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'rechazado':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getOnboardingStatusText = (status: string) => {
-    switch (status) {
-      case 'aprobado':
-        return 'Aprobado';
-      case 'pendiente':
-        return 'En Revisión';
-      case 'rechazado':
-        return 'Rechazado';
-      default:
-        return 'Desconocido';
-    }
-  };
-
-  if (!user || user.rol !== 'vendedor') {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
-          <p className="text-gray-600">Solo los vendedores pueden acceder a esta página</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (isLoading) {
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-xl mb-4">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={loadSellerData}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.rol !== 'vendedor') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Denegado</h2>
+          <p className="text-gray-600">Solo los vendedores pueden acceder a esta página.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Panel de Vendedor</h1>
-            <p className="text-gray-600 mt-2">
-              Bienvenido, {user.nombre} {user.apellido}
-            </p>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Panel del Vendedor</h1>
+          <p className="text-gray-600 mt-2">
+            Bienvenido, {user.nombre} {user.apellido}
+          </p>
+        </div>
 
-          {/* Onboarding Status */}
-          {sellerData && sellerData.estado_onboarding !== 'aprobado' && (
-            <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <ClockIcon className="w-5 h-5 text-yellow-600 mr-2" />
-                <div>
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Estado: {getOnboardingStatusText(sellerData.estado_onboarding)}
-                  </h3>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Tu cuenta está siendo revisada. Podrás vender productos una vez que sea aprobada.
+        {/* Alertas */}
+        {!hasCompletedProfile && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Perfil incompleto
+                </h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>
+                    Completa tu perfil de vendedor para acceder a todas las funcionalidades.
                   </p>
                 </div>
+                <div className="mt-4">
+                  <a
+                    href="/seller/onboarding"
+                    className="bg-yellow-400 text-yellow-900 px-3 py-2 rounded-md text-sm font-medium hover:bg-yellow-500"
+                  >
+                    Completar perfil
+                  </a>
+                </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Stats Grid */}
+        {/* Dashboard Stats */}
+        {dashboardData && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* Productos */}
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <CurrencyDollarIcon className="w-8 h-8 text-green-600" />
+                  <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Ventas Totales</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalVentas}</p>
+                  <p className="text-sm font-medium text-gray-500">Productos Activos</p>
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.productos_activos}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* Pedidos */}
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <ChartBarIcon className="w-8 h-8 text-blue-600" />
+                  <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Ventas Hoy</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.ventasHoy}</p>
+                  <p className="text-sm font-medium text-gray-500">Pedidos Pendientes</p>
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.pedidos_pendientes}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* Ventas */}
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <ShoppingBagIcon className="w-8 h-8 text-purple-600" />
+                  <svg className="h-8 w-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Productos Activos</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.productosActivos}</p>
+                  <p className="text-sm font-medium text-gray-500">Ventas Hoy</p>
+                  <p className="text-2xl font-semibold text-gray-900">Bs. {dashboardData.ventas_hoy.toFixed(2)}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* Calificación */}
+            <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <StarIcon className="w-8 h-8 text-yellow-600" />
+                  <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Calificación</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.calificacionPromedio}</p>
+                  <p className="text-sm font-medium text-gray-500">Calificación</p>
+                  <p className="text-2xl font-semibold text-gray-900">{dashboardData.calificacion_promedio.toFixed(1)}</p>
                 </div>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Seller Profile Card */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="text-center mb-6">
-                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-white text-xl font-bold">
-                      {user.nombre?.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {user.nombre} {user.apellido}
-                  </h2>
-                  <p className="text-gray-600">{user.email}</p>
-                </div>
-
-                {sellerData && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Estado:</span>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getOnboardingStatusColor(sellerData.estado_onboarding)}`}>
-                        {getOnboardingStatusText(sellerData.estado_onboarding)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">CI/NIT:</span>
-                      <span className="text-sm font-medium text-gray-900">{sellerData.numero_identificacion}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Comisión:</span>
-                      <span className="text-sm font-medium text-gray-900">{(sellerData.tasa_comision * 100).toFixed(1)}%</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Reseñas:</span>
-                      <span className="text-sm font-medium text-gray-900">{sellerData.total_resenas}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Calificación:</span>
-                      <div className="flex items-center">
-                        <StarIcon className="w-4 h-4 text-yellow-500 mr-1" />
-                        <span className="text-sm font-medium text-gray-900">{sellerData.calificacion_promedio}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <Button
-                    onClick={() => router.push('/profile')}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <UserCircleIcon className="w-4 h-4 mr-2" />
-                    Ver Perfil Completo
-                  </Button>
-                </div>
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <a
+            href="/seller/products"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Gestionar Productos</h3>
+                <p className="text-sm text-gray-500">Agregar, editar o eliminar productos</p>
               </div>
             </div>
+          </a>
 
-            {/* Quick Actions */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-6">Acciones Rápidas</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Button
-                    onClick={() => router.push('/seller/products')}
-                    className="w-full bg-black text-white hover:bg-gray-800"
-                  >
-                    <PlusIcon className="w-4 h-4 mr-2" />
-                    Gestionar Productos
-                  </Button>
-                  
-                  <Button
-                    onClick={() => router.push('/seller/orders')}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ShoppingBagIcon className="w-4 h-4 mr-2" />
-                    Ver Pedidos
-                  </Button>
-                  
-                  <Button
-                    onClick={() => router.push('/seller/analytics')}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <ChartBarIcon className="w-4 h-4 mr-2" />
-                    Análisis de Ventas
-                  </Button>
-                  
-                  <Button
-                    onClick={() => router.push('/seller/settings')}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <CogIcon className="w-4 h-4 mr-2" />
-                    Configuración
-                  </Button>
-                </div>
+          <a
+            href="/seller/orders"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-
-              {/* Location Info */}
-              {sellerData && (
-                <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Ubicación Actual</h3>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Coordenadas:</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatCoordinate(sellerData.latitud_actual, 4)}, {formatCoordinate(sellerData.longitud_actual, 4)}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Última actualización:</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {sellerData.ultima_actualizacion_ubicacion ? new Date(sellerData.ultima_actualizacion_ubicacion).toLocaleString('es-ES') : 'N/A'}
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Zona asignada:</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {sellerData.zona_asignada_id || 'No asignada'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <Button
-                      onClick={() => router.push('/seller/location')}
-                      variant="outline"
-                      className="w-full"
-                    >
-                      <MapPinIcon className="w-4 h-4 mr-2" />
-                      Actualizar Ubicación
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Gestionar Pedidos</h3>
+                <p className="text-sm text-gray-500">Ver y gestionar pedidos de clientes</p>
+              </div>
             </div>
-          </div>
+          </a>
+
+          <a
+            href="/seller/reviews"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Reseñas</h3>
+                <p className="text-sm text-gray-500">Ver y responder reseñas de clientes</p>
+              </div>
+            </div>
+          </a>
+
+          <a
+            href="/seller/location"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Ubicación</h3>
+                <p className="text-sm text-gray-500">Actualizar ubicación en tiempo real</p>
+              </div>
+            </div>
+          </a>
+
+          <a
+            href="/chat"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Chat</h3>
+                <p className="text-sm text-gray-500">Comunicarte con tus clientes</p>
+              </div>
+            </div>
+          </a>
+
+          <a
+            href="/seller/onboarding"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Completar Perfil</h3>
+                <p className="text-sm text-gray-500">Finalizar configuración de vendedor</p>
+              </div>
+            </div>
+          </a>
         </div>
       </div>
     </div>

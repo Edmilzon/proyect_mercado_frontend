@@ -156,7 +156,7 @@ export default function SellerOnboarding() {
                   onChange={handleInputChange}
                   placeholder="12345678"
                   required
-                  icon={<IdentificationIcon className="w-5 h-5" />}
+
                 />
                 <p className="text-sm text-gray-500 mt-1">
                   Ingresa tu número de carnet de identidad

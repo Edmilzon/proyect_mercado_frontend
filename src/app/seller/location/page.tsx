@@ -76,7 +76,7 @@ export default function LocationPage() {
         throw new Error('Usuario no identificado');
       }
       
-      await sellerService.updateLocation({
+      await sellerService.updateSellerLocation({
         vendedor_id: user.usuario_id,
         latitud: newLocation.latitud,
         longitud: newLocation.longitud,
