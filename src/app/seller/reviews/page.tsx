@@ -47,6 +47,8 @@ export default function SellerReviewsPage() {
       setError(null);
 
       const reviewsData = await sellerService.getSellerReviews(user!.usuario_id);
+      console.log('🔍 Reviews data:', reviewsData);
+      console.log('🔍 Is array:', Array.isArray(reviewsData));
       setReviews(reviewsData);
     } catch (error) {
       console.error('Error loading reviews:', error);
@@ -103,7 +105,7 @@ export default function SellerReviewsPage() {
   };
 
   const getAverageRating = () => {
-    if (reviews.length === 0) return 0;
+    if (!Array.isArray(reviews) || reviews.length === 0) return '0.0';
     const total = reviews.reduce((sum, review) => sum + review.calificacion, 0);
     return (total / reviews.length).toFixed(1);
   };
@@ -163,7 +165,7 @@ export default function SellerReviewsPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">{reviews.length}</div>
+              <div className="text-3xl font-bold text-gray-900">{Array.isArray(reviews) ? reviews.length : 0}</div>
               <div className="text-sm text-gray-600">Total de Reseñas</div>
             </div>
             <div className="text-center">
@@ -172,7 +174,7 @@ export default function SellerReviewsPage() {
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-gray-900">
-                {reviews.filter(r => !r.respuesta_vendedor).length}
+                {Array.isArray(reviews) ? reviews.filter(r => !r.respuesta_vendedor).length : 0}
               </div>
               <div className="text-sm text-gray-600">Sin Responder</div>
             </div>
@@ -181,7 +183,7 @@ export default function SellerReviewsPage() {
 
         {/* Lista de Reseñas */}
         <div className="space-y-6">
-          {reviews.length === 0 ? (
+          {!Array.isArray(reviews) || reviews.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 text-6xl mb-4">⭐</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No hay reseñas</h3>

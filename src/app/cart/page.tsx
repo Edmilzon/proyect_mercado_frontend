@@ -5,131 +5,87 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import Navbar from '@/components/layout/Navbar';
-import { cartService, CartItem, CartSummary } from '@/services/cart';
+import { cartService, CartItem } from '@/services/cart';
 import { productsService } from '@/services/products';
-import { zonesService } from '@/services/zones';
-import { Producto, ZonaEntrega } from '@/types';
+import { ordersService } from '@/services/orders';
+import { Producto } from '@/types';
 import { 
   TrashIcon,
   PlusIcon,
   MinusIcon,
   ShoppingCartIcon,
-  TruckIcon,
-  CurrencyDollarIcon,
   ArrowLeftIcon,
   CreditCardIcon
 } from '@heroicons/react/24/outline';
+import { CartCompleteSummaryResponse, CartStockValidationResponse } from '@/services/cart';
 
 export default function CartPage() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   
-  // Estados
+  // Estados simples
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [products, setProducts] = useState<{ [key: string]: Producto }>({});
-  const [zones, setZones] = useState<ZonaEntrega[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  
+  // Estados para APIs del carrito
+  const [cartSummary, setCartSummary] = useState<CartCompleteSummaryResponse | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [selectedZone, setSelectedZone] = useState<string>('');
   const [discountCode, setDiscountCode] = useState<string>('');
-  const [cartSummary, setCartSummary] = useState<CartSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const [stockValidation, setStockValidation] = useState<CartStockValidationResponse | null>(null);
 
-  // Cargar datos iniciales
+  // Cargar items del carrito al montar
   useEffect(() => {
-    loadCartData();
-  }, []);
-
-  // Recalcular cuando cambien los items
-  useEffect(() => {
-    if (cartItems.length > 0) {
-      calculateCartSummary();
-    }
-  }, [cartItems, selectedZone, discountCode]);
-
-  const loadCartData = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Cargar items del carrito
-      const items = cartService.getCartItems();
-      setCartItems(items);
-
-      if (items.length > 0) {
-        // Cargar productos
-        await loadProducts(items);
-        
-        // Cargar zonas de entrega
-        await loadZones();
-      }
-      
-    } catch (error) {
-      console.error('Error loading cart data:', error);
-    } finally {
+    const items = cartService.getCartItems();
+    setCartItems(items);
+    
+    // Cargar datos de productos si hay items
+    if (items.length > 0) {
+      loadProducts(items);
+      // Validar stock y calcular resumen
+      validateStock();
+      calculateCompleteSummary();
+    } else {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  // Recalcular cuando cambien los items del carrito
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      validateStock();
+      calculateCompleteSummary();
+    }
+  }, [cartItems]);
+
+  // Función para cargar productos
   const loadProducts = async (items: CartItem[]) => {
     try {
-      const productIds = items.map(item => item.producto_id);
       const productsData: { [key: string]: Producto } = {};
       
-      for (const productId of productIds) {
+      for (const item of items) {
         try {
-          const product = await productsService.getProductById(productId);
-          productsData[productId] = product;
+          const product = await productsService.getProductById(item.producto_id);
+          productsData[item.producto_id] = product;
         } catch (error) {
-          console.error(`Error loading product ${productId}:`, error);
+          console.error(`Error loading product ${item.producto_id}:`, error);
+          // Continuar con otros productos si uno falla
         }
       }
       
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
-    }
-  };
-
-  const loadZones = async () => {
-    try {
-      const zonesData = await zonesService.getZonasActivas();
-      console.log('Zones loaded:', zonesData);
-      
-      // Asegurar que zonesData sea un array
-      if (Array.isArray(zonesData)) {
-        setZones(zonesData);
-        if (zonesData.length > 0) {
-          setSelectedZone(zonesData[0].zona_id);
-        }
-      } else {
-        console.warn('Zones data is not an array:', zonesData);
-        setZones([]);
-      }
-    } catch (error) {
-      console.error('Error loading zones:', error);
-      setZones([]);
-    }
-  };
-
-  const calculateCartSummary = async () => {
-    try {
-      setIsCalculating(true);
-      
-      const summary = await cartService.getCompleteSummary({
-        items: cartItems,
-        zona_id: selectedZone,
-        codigo_descuento: discountCode
-      });
-      
-      setCartSummary(summary);
-    } catch (error) {
-      console.error('Error calculating cart summary:', error);
     } finally {
-      setIsCalculating(false);
+      setIsLoading(false);
     }
   };
 
+  // Funciones simples
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
       removeItem(productId);
@@ -147,24 +103,24 @@ export default function CartPage() {
   const clearCart = () => {
     cartService.clearCart();
     setCartItems([]);
-    setCartSummary(null);
   };
 
   const formatPrice = (price: number) => {
+    if (isNaN(price) || !isFinite(price)) {
+      return 'Bs. 0.00';
+    }
     return new Intl.NumberFormat('es-BO', {
       style: 'currency',
       currency: 'BOB'
     }).format(price);
   };
 
-  const isValidImageUrl = (url: string) => {
-    if (!url || typeof url !== 'string') return false;
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
+  const calculateSubtotal = () => {
+    return cartItems.reduce((sum, item) => {
+      const product = products[item.producto_id];
+      const price = product?.precio_actual || 0;
+      return sum + (price * item.cantidad);
+    }, 0);
   };
 
   const handleCheckout = () => {
@@ -172,11 +128,120 @@ export default function CartPage() {
       router.push('/login');
       return;
     }
-    
-    // TODO: Implementar checkout
     router.push('/checkout');
   };
 
+  // Función para crear pedido
+  const handleCreateOrder = async () => {
+    if (!user) {
+      setOrderError('Debes iniciar sesión para realizar un pedido');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      setOrderError('El carrito está vacío');
+      return;
+    }
+
+    setIsCreatingOrder(true);
+    setOrderError(null);
+
+    try {
+      // Obtener el primer producto para determinar el vendedor
+      const firstProduct = products[cartItems[0].producto_id];
+      if (!firstProduct?.vendedor?.vendedor_id) {
+        throw new Error('No se pudo determinar el vendedor');
+      }
+
+      // Crear el pedido
+      const orderData = {
+        comprador_id: user.usuario_id,
+        vendedor_id: firstProduct.vendedor.vendedor_id,
+        direccion_entrega_id: 'default', // TODO: Implementar selección de dirección
+        costo_envio: shipping,
+        monto_descuento: 0, // TODO: Implementar descuentos
+        notas_comprador: 'Pedido desde el carrito',
+        items: cartItems.map(item => ({
+          producto_id: item.producto_id,
+          cantidad: item.cantidad
+        }))
+      };
+
+      const order = await ordersService.createOrder(orderData);
+      
+      // Limpiar carrito después de crear el pedido
+      cartService.clearCart();
+      setCartItems([]);
+      
+      // Redirigir a la página de pedidos o mostrar confirmación
+      router.push('/buyer/orders');
+      
+    } catch (error) {
+      console.error('Error creating order:', error);
+      setOrderError('Error al crear el pedido. Inténtalo de nuevo.');
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  // Función para validar stock
+  const validateStock = async () => {
+    if (cartItems.length === 0) return;
+    
+    try {
+      const validation = await cartService.validateStock({ items: cartItems });
+      setStockValidation(validation);
+      
+      if (!validation.items_validos) {
+        setOrderError(`Algunos productos no tienen stock suficiente: ${validation.mensaje}`);
+      }
+    } catch (error) {
+      console.error('Error validating stock:', error);
+      setOrderError('Error al validar el stock de los productos');
+    }
+  };
+
+  // Función para calcular resumen completo del carrito
+  const calculateCompleteSummary = async () => {
+    if (cartItems.length === 0) return;
+    
+    setIsCalculating(true);
+    try {
+      const summary = await cartService.getCompleteSummary({
+        items: cartItems,
+        zona_id: selectedZone || undefined,
+        codigo_descuento: discountCode || undefined
+      });
+      setCartSummary(summary);
+    } catch (error) {
+      console.error('Error calculating cart summary:', error);
+      setOrderError('Error al calcular el resumen del carrito');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  // Función para aplicar código de descuento
+  const applyDiscountCode = async () => {
+    if (!discountCode.trim()) return;
+    
+    try {
+      const subtotal = calculateSubtotal();
+      const discount = await cartService.calculateDiscount(subtotal, discountCode);
+      
+      if (discount.codigo_valido) {
+        // Recalcular resumen con descuento
+        await calculateCompleteSummary();
+      } else {
+        setOrderError('Código de descuento inválido');
+      }
+    } catch (error) {
+      console.error('Error applying discount:', error);
+      setOrderError('Error al aplicar el código de descuento');
+    }
+  };
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -193,6 +258,7 @@ export default function CartPage() {
     );
   }
 
+  // Carrito vacío
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -214,17 +280,20 @@ export default function CartPage() {
     );
   }
 
+  const subtotal = calculateSubtotal();
+  const shipping = 5; // Envío fijo por ahora
+  const total = subtotal + shipping;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
       <div className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Carrito de Compras</h1>
             <p className="text-gray-600 mt-2">
-              {cartItems.length} producto{cartItems.length !== 1 ? 's' : ''} en tu carrito
+              Revisa tus productos antes de proceder al pago
             </p>
           </div>
 
@@ -232,55 +301,44 @@ export default function CartPage() {
             {/* Cart Items */}
             <div className="lg:col-span-2">
               <div className="bg-white rounded-lg shadow-md">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-medium text-gray-900">Productos</h2>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearCart}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      Limpiar carrito
-                    </Button>
-                  </div>
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h2 className="text-lg font-medium text-gray-900">
+                    Productos ({cartItems.length})
+                  </h2>
                 </div>
-
+                
                 <div className="divide-y divide-gray-200">
                   {cartItems.map((item) => {
                     const product = products[item.producto_id];
-                    if (!product) return null;
-
+                    
                     return (
                       <div key={item.producto_id} className="p-6">
                         <div className="flex items-center space-x-4">
                           {/* Product Image */}
-                          <div className="flex-shrink-0 w-20 h-20">
-                            {product.url_imagen_principal && isValidImageUrl(product.url_imagen_principal) ? (
+                          <div className="w-20 h-20 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                            {product?.url_imagen_principal ? (
                               <Image
                                 src={product.url_imagen_principal}
                                 alt={product.nombre}
                                 width={80}
                                 height={80}
-                                className="w-full h-full object-cover rounded-md"
+                                className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-                                <ShoppingCartIcon className="w-8 h-8 text-gray-400" />
-                              </div>
+                              <span className="text-gray-400 text-xs">IMG</span>
                             )}
                           </div>
 
                           {/* Product Info */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">
-                              {product.nombre}
+                          <div className="flex-1">
+                            <h3 className="text-lg font-medium text-gray-900">
+                              {product?.nombre || `Producto #${item.producto_id.slice(-8)}`}
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {product.categoria?.nombre}
+                              {product?.categoria?.nombre || 'Sin categoría'}
                             </p>
                             <p className="text-sm text-gray-500">
-                              Stock: {product.cantidad_stock}
+                              Cantidad: {item.cantidad}
                             </p>
                           </div>
 
@@ -299,7 +357,7 @@ export default function CartPage() {
                             <button
                               onClick={() => updateQuantity(item.producto_id, item.cantidad + 1)}
                               className="p-1 rounded-md hover:bg-gray-100"
-                              disabled={item.cantidad >= product.cantidad_stock}
+                              disabled={product && item.cantidad >= product.cantidad_stock}
                             >
                               <PlusIcon className="w-4 h-4" />
                             </button>
@@ -308,10 +366,10 @@ export default function CartPage() {
                           {/* Price */}
                           <div className="text-right">
                             <p className="text-sm font-medium text-gray-900">
-                              {formatPrice(product.precio_actual * item.cantidad)}
+                              {formatPrice((product?.precio_actual || 0) * item.cantidad)}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {formatPrice(product.precio_actual)} c/u
+                              {formatPrice(product?.precio_actual || 0)} c/u
                             </p>
                           </div>
 
@@ -335,96 +393,50 @@ export default function CartPage() {
               <div className="bg-white rounded-lg shadow-md p-6 sticky top-8">
                 <h2 className="text-lg font-medium text-gray-900 mb-4">Resumen del pedido</h2>
 
-                {/* Shipping Zone */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Zona de entrega
-                  </label>
-                  <select
-                    value={selectedZone}
-                    onChange={(e) => setSelectedZone(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="">Seleccionar zona de entrega</option>
-                    {Array.isArray(zones) && zones.length > 0 ? (
-                      zones.map((zone) => (
-                        <option key={zone.zona_id} value={zone.zona_id}>
-                          {zone.nombre} - {formatPrice(zone.tarifa_envio)}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>
-                        No hay zonas disponibles
-                      </option>
-                    )}
-                  </select>
-                </div>
-
-                {/* Discount Code */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Código de descuento
-                  </label>
-                  <div className="flex space-x-2">
-                    <Input
-                      type="text"
-                      placeholder="Código de descuento"
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDiscountCode('')}
-                    >
-                      Limpiar
-                    </Button>
-                  </div>
-                </div>
-
                 {/* Summary */}
-                {isCalculating ? (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="text-sm text-gray-600 mt-2">Calculando...</p>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
-                ) : cartSummary ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal</span>
-                      <span>{formatPrice(cartSummary.subtotal)}</span>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm">
-                      <span>Envío</span>
-                      <span>{formatPrice(cartSummary.costo_envio)}</span>
-                    </div>
-                    
-                    {cartSummary.monto_descuento > 0 && (
-                      <div className="flex justify-between text-sm text-green-600">
-                        <span>Descuento</span>
-                        <span>-{formatPrice(cartSummary.monto_descuento)}</span>
-                      </div>
-                    )}
-                    
-                    <div className="border-t border-gray-200 pt-3">
-                      <div className="flex justify-between text-lg font-bold">
-                        <span>Total</span>
-                        <span>{formatPrice(cartSummary.monto_final)}</span>
-                      </div>
+                  
+                  <div className="flex justify-between text-sm">
+                    <span>Envío</span>
+                    <span>{formatPrice(shipping)}</span>
+                  </div>
+                  
+                  <div className="border-t border-gray-200 pt-3">
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Total</span>
+                      <span>{formatPrice(total)}</span>
                     </div>
                   </div>
-                ) : null}
+                </div>
 
-                {/* Checkout Button */}
+                {/* Error Message */}
+                {orderError && (
+                  <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+                    <p className="text-red-600 text-sm">{orderError}</p>
+                  </div>
+                )}
+
+                {/* Create Order Button */}
                 <Button
-                  onClick={handleCheckout}
-                  disabled={!cartSummary || isCalculating}
+                  onClick={handleCreateOrder}
                   className="w-full mt-6 bg-black text-white hover:bg-gray-800 py-3"
+                  disabled={cartItems.length === 0 || isCreatingOrder}
                 >
-                  <CreditCardIcon className="w-5 h-5 mr-2" />
-                  Proceder al pago
+                  {isCreatingOrder ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Creando Pedido...
+                    </div>
+                  ) : (
+                    <>
+                      <ShoppingCartIcon className="w-5 h-5 mr-2" />
+                      Realizar Pedido
+                    </>
+                  )}
                 </Button>
 
                 {/* Continue Shopping */}
@@ -435,6 +447,16 @@ export default function CartPage() {
                 >
                   <ArrowLeftIcon className="w-4 h-4 mr-2" />
                   Continuar comprando
+                </Button>
+
+                {/* Clear Cart */}
+                <Button
+                  variant="outline"
+                  onClick={clearCart}
+                  className="w-full mt-3 text-red-600 border-red-600 hover:bg-red-50"
+                >
+                  <TrashIcon className="w-4 h-4 mr-2" />
+                  Vaciar carrito
                 </Button>
               </div>
             </div>

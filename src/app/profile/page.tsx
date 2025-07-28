@@ -18,7 +18,8 @@ import {
   PencilIcon,
   CheckIcon,
   XMarkIcon,
-  ChatBubbleLeftIcon
+  ChatBubbleLeftIcon,
+  ShoppingBagIcon
 } from '@heroicons/react/24/outline';
 
 export default function ProfilePage() {
@@ -142,6 +143,30 @@ export default function ProfilePage() {
                       Mis Reseñas
                     </Button>
                   </Link>
+                  
+                  {user.rol === 'vendedor' && (
+                    <Link href="/seller/onboarding">
+                      <Button
+                        variant="outline"
+                        className="w-full bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                      >
+                        <ShieldCheckIcon className="w-4 h-4 mr-2" />
+                        Completar Datos de Vendedor
+                      </Button>
+                    </Link>
+                  )}
+
+                  {user.rol === 'comprador' && (
+                    <Link href="/buyer/dashboard">
+                      <Button
+                        variant="outline"
+                        className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                      >
+                        <ShoppingBagIcon className="w-4 h-4 mr-2" />
+                        Mi Cuenta de Comprador
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

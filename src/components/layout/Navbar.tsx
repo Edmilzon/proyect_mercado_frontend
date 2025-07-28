@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { APP_CONFIG } from '@/constants';
@@ -25,6 +26,7 @@ import {
 
 export const Navbar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [cartItemCount, setCartItemCount] = useStateCart(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -37,7 +39,7 @@ export const Navbar: React.FC = () => {
   // Actualizar contador del carrito
   useEffectCart(() => {
     const updateCartCount = () => {
-      const count = cartService.getTotalItems();
+      const count = cartService.getCartItemCount();
       setCartItemCount(count);
     };
 
@@ -66,6 +68,11 @@ export const Navbar: React.FC = () => {
   const handleLogout = () => {
     logout();
     setIsDropdownOpen(false);
+  };
+
+  const handleCartClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push('/cart');
   };
 
   const navigationItems = [
@@ -111,6 +118,7 @@ export const Navbar: React.FC = () => {
             <Link
               href="/cart"
               className="relative p-2 text-gray-700 hover:text-blue-600 transition-colors duration-200"
+              onClick={handleCartClick}
             >
               <ShoppingCartIcon className="w-6 h-6" />
               {cartItemCount > 0 && (

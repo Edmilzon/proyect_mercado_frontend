@@ -105,10 +105,16 @@ export default function ProductsPage() {
         // Crear producto
         const { imagenes, ...productData } = formData;
         
-        const newProduct = await productsService.createProduct({
+        const productToCreate = {
           ...productData,
+          vendedor_id: user!.usuario_id, // OBLIGATORIO según las APIs
           sku: `SKU${Date.now()}`,
-        });
+        };
+        
+        console.log('🔍 Datos del producto a crear:', productToCreate);
+        console.log('🔍 Usuario ID:', user!.usuario_id);
+        
+        const newProduct = await productsService.createProduct(productToCreate);
         
         // Si hay imágenes adicionales, agregarlas al producto
         if (imagenes.length > 0) {

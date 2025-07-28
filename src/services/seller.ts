@@ -48,6 +48,7 @@ export interface SellerSalesReport {
 class SellerService extends ApiService {
   /**
    * Convertir usuario normal en vendedor (API 7)
+   * Requiere autenticación JWT
    */
   async convertToSeller(data: {
     usuario_id: string;
@@ -182,7 +183,14 @@ class SellerService extends ApiService {
    * Listar reseñas del vendedor (API 56)
    */
   async getSellerReviews(sellerId: string): Promise<any[]> {
-    return this.get(`/resenas/vendedor/${sellerId}`);
+    try {
+      const response = await this.get(`/resenas/vendedor/${sellerId}`);
+      // Asegurar que siempre devuelva un array
+      return Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('Error getting seller reviews:', error);
+      return [];
+    }
   }
 
   /**
@@ -257,6 +265,48 @@ class SellerService extends ApiService {
    */
   async getConversationById(conversacionId: string): Promise<any> {
     return this.get(`/conversaciones/${conversacionId}`);
+  }
+
+  /**
+   * Actualizar estado de onboarding del vendedor
+   */
+  async updateSellerOnboardingStatus(sellerId: string, estado: 'pendiente' | 'aprobado' | 'rechazado'): Promise<any> {
+    return this.put(`/vendedores/${sellerId}`, { estado_onboarding: estado });
+  }
+
+  /**
+   * Obtener estadísticas de productos del vendedor
+   */
+  async getSellerProductStats(sellerId: string): Promise<any> {
+    return this.get(`/vendedores/${sellerId}/productos/estadisticas`);
+  }
+
+  /**
+   * Obtener estadísticas de pedidos del vendedor
+   */
+  async getSellerOrderStats(sellerId: string): Promise<any> {
+    return this.get(`/vendedores/${sellerId}/pedidos/estadisticas`);
+  }
+
+  /**
+   * Obtener notificaciones del vendedor
+   */
+  async getSellerNotifications(sellerId: string): Promise<any[]> {
+    return this.get(`/vendedores/${sellerId}/notificaciones`);
+  }
+
+  /**
+   * Marcar notificación como leída
+   */
+  async markNotificationAsRead(notificationId: string): Promise<any> {
+    return this.put(`/vendedores/notificaciones/${notificationId}/leer`);
+  }
+
+  /**
+   * Obtener contador de notificaciones no leídas
+   */
+  async getUnreadNotificationsCount(sellerId: string): Promise<{ notificaciones_no_leidas: number }> {
+    return this.get(`/vendedores/${sellerId}/notificaciones/contador`);
   }
 }
 

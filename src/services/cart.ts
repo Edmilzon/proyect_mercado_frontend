@@ -1,194 +1,159 @@
 import { ApiService } from './api';
-import { API_ENDPOINTS } from '@/constants';
-import { Producto } from '@/types';
 
+// Interfaces para el carrito
 export interface CartItem {
   producto_id: string;
   cantidad: number;
-  producto?: Producto;
 }
 
-export interface CartSummary {
-  subtotal: number;
-  costo_envio: number;
-  monto_descuento: number;
-  monto_final: number;
+export interface CartCalculationRequest {
   items: CartItem[];
 }
 
-export interface ShippingCalculation {
+export interface CartCalculationResponse {
+  subtotal: number;
+  total: number;
+  items_count: number;
+}
+
+export interface CartStockValidationRequest {
+  items: CartItem[];
+}
+
+export interface CartStockValidationResponse {
+  items_validos: boolean;
+  items_sin_stock: CartItem[];
+  mensaje?: string;
+}
+
+export interface CartShippingRequest {
   subtotal: number;
   zona_id: string;
 }
 
-export interface DiscountCalculation {
-  subtotal: number;
-  codigo_descuento?: string;
+export interface CartShippingResponse {
+  costo_envio: number;
+  zona_nombre: string;
+  tiempo_estimado: string;
 }
 
-export interface CompleteCartSummary {
+export interface CartDiscountRequest {
+  subtotal: number;
+  codigo_descuento: string;
+}
+
+export interface CartDiscountResponse {
+  codigo_valido: boolean;
+  monto_descuento: number;
+  porcentaje_descuento: number;
+  descripcion: string;
+}
+
+export interface CartCompleteSummaryRequest {
   items: CartItem[];
   zona_id?: string;
   codigo_descuento?: string;
 }
 
-export class CartService extends ApiService {
+export interface CartCompleteSummaryResponse {
+  subtotal: number;
+  costo_envio: number;
+  monto_descuento: number;
+  total: number;
+  items_count: number;
+  zona_info?: {
+    zona_id: string;
+    zona_nombre: string;
+    tiempo_estimado: string;
+  };
+  descuento_info?: {
+    codigo: string;
+    porcentaje: number;
+    descripcion: string;
+  };
+  items_detalles: Array<{
+    producto_id: string;
+    nombre: string;
+    precio: number;
+    cantidad: number;
+    subtotal: number;
+    stock_disponible: number;
+  }>;
+}
+
+class CartService extends ApiService {
   // Calcular totales del carrito
-  async calculateCart(items: CartItem[]): Promise<CartSummary> {
-    try {
-      const response = await this.post<CartSummary>(API_ENDPOINTS.CART.CALCULATE, { items });
-      return response;
-    } catch (error) {
-      console.error('Error calculating cart:', error);
-      throw error;
-    }
+  async calculateCart(request: CartCalculationRequest): Promise<CartCalculationResponse> {
+    return this.post<CartCalculationResponse>('/carrito/calcular', request);
   }
 
   // Validar disponibilidad de stock
-  async validateStock(items: CartItem[]): Promise<{ valid: boolean; errors: string[] }> {
-    try {
-      const response = await this.post<{ valid: boolean; errors: string[] }>(
-        API_ENDPOINTS.CART.VALIDATE_STOCK, 
-        { items }
-      );
-      return response;
-    } catch (error) {
-      console.error('Error validating stock:', error);
-      throw error;
-    }
+  async validateStock(request: CartStockValidationRequest): Promise<CartStockValidationResponse> {
+    return this.post<CartStockValidationResponse>('/carrito/validar-stock', request);
   }
 
   // Calcular costo de envío
-  async calculateShipping(subtotal: number, zonaId: string): Promise<{ costo_envio: number }> {
-    try {
-      const response = await this.get<{ costo_envio: number }>(
-        `${API_ENDPOINTS.CART.CALCULATE_SHIPPING}?subtotal=${subtotal}&zona_id=${zonaId}`
-      );
-      return response;
-    } catch (error) {
-      console.error('Error calculating shipping:', error);
-      throw error;
-    }
+  async calculateShipping(subtotal: number, zona_id: string): Promise<CartShippingResponse> {
+    return this.get<CartShippingResponse>(`/carrito/calcular-envio?subtotal=${subtotal}&zona_id=${zona_id}`);
   }
 
   // Calcular descuentos aplicables
-  async calculateDiscounts(subtotal: number, codigoDescuento?: string): Promise<{ monto_descuento: number }> {
-    try {
-      const params = new URLSearchParams();
-      params.append('subtotal', subtotal.toString());
-      if (codigoDescuento) {
-        params.append('codigo_descuento', codigoDescuento);
-      }
-      
-      const response = await this.get<{ monto_descuento: number }>(
-        `${API_ENDPOINTS.CART.CALCULATE_DISCOUNTS}?${params.toString()}`
-      );
-      return response;
-    } catch (error) {
-      console.error('Error calculating discounts:', error);
-      throw error;
-    }
+  async calculateDiscount(subtotal: number, codigo_descuento: string): Promise<CartDiscountResponse> {
+    return this.get<CartDiscountResponse>(`/carrito/calcular-descuentos?subtotal=${subtotal}&codigo_descuento=${codigo_descuento}`);
   }
 
-  // Resumen completo del carrito con envío y descuentos
-  async getCompleteSummary(cartData: CompleteCartSummary): Promise<CartSummary> {
-    try {
-      const response = await this.post<CartSummary>(API_ENDPOINTS.CART.COMPLETE_SUMMARY, cartData);
-      return response;
-    } catch (error) {
-      console.error('Error getting complete cart summary:', error);
-      throw error;
-    }
+  // Resumen completo del carrito
+  async getCompleteSummary(request: CartCompleteSummaryRequest): Promise<CartCompleteSummaryResponse> {
+    return this.post<CartCompleteSummaryResponse>('/carrito/resumen-completo', request);
   }
 
-  // Agregar producto al carrito (local storage)
-  addToCart(productId: string, cantidad: number): void {
-    try {
-      const cartItems = this.getCartItems();
-      const existingItem = cartItems.find(item => item.producto_id === productId);
-      
-      if (existingItem) {
-        existingItem.cantidad += cantidad;
-      } else {
-        cartItems.push({ producto_id: productId, cantidad });
-      }
-      
-      localStorage.setItem('cart_items', JSON.stringify(cartItems));
-      this.emitCartUpdate();
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-    }
-  }
-
-  // Remover producto del carrito
-  removeFromCart(productId: string): void {
-    try {
-      const cartItems = this.getCartItems();
-      const updatedItems = cartItems.filter(item => item.producto_id !== productId);
-      localStorage.setItem('cart_items', JSON.stringify(updatedItems));
-      this.emitCartUpdate();
-    } catch (error) {
-      console.error('Error removing from cart:', error);
-    }
-  }
-
-  // Actualizar cantidad de un producto
-  updateQuantity(productId: string, cantidad: number): void {
-    try {
-      const cartItems = this.getCartItems();
-      const item = cartItems.find(item => item.producto_id === productId);
-      
-      if (item) {
-        if (cantidad <= 0) {
-          this.removeFromCart(productId);
-        } else {
-          item.cantidad = cantidad;
-          localStorage.setItem('cart_items', JSON.stringify(cartItems));
-          this.emitCartUpdate();
-        }
-      }
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-    }
-  }
-
-  // Obtener items del carrito
+  // Métodos locales para localStorage
   getCartItems(): CartItem[] {
-    try {
-      const items = localStorage.getItem('cart_items');
-      return items ? JSON.parse(items) : [];
-    } catch (error) {
-      console.error('Error getting cart items:', error);
-      return [];
+    if (typeof window === 'undefined') return [];
+    const items = localStorage.getItem('cart_items');
+    return items ? JSON.parse(items) : [];
+  }
+
+  addToCart(productId: string, quantity: number = 1): void {
+    const items = this.getCartItems();
+    const existingItem = items.find(item => item.producto_id === productId);
+    
+    if (existingItem) {
+      existingItem.cantidad += quantity;
+    } else {
+      items.push({ producto_id: productId, cantidad: quantity });
+    }
+    
+    localStorage.setItem('cart_items', JSON.stringify(items));
+  }
+
+  updateQuantity(productId: string, quantity: number): void {
+    const items = this.getCartItems();
+    const item = items.find(item => item.producto_id === productId);
+    
+    if (item) {
+      if (quantity <= 0) {
+        this.removeFromCart(productId);
+      } else {
+        item.cantidad = quantity;
+        localStorage.setItem('cart_items', JSON.stringify(items));
+      }
     }
   }
 
-  // Limpiar carrito
+  removeFromCart(productId: string): void {
+    const items = this.getCartItems();
+    const filteredItems = items.filter(item => item.producto_id !== productId);
+    localStorage.setItem('cart_items', JSON.stringify(filteredItems));
+  }
+
   clearCart(): void {
-    try {
-      localStorage.removeItem('cart_items');
-      this.emitCartUpdate();
-    } catch (error) {
-      console.error('Error clearing cart:', error);
-    }
+    localStorage.removeItem('cart_items');
   }
 
-  // Emitir evento de actualización del carrito
-  private emitCartUpdate(): void {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('cartUpdated'));
-    }
-  }
-
-  // Obtener cantidad total de items
-  getTotalItems(): number {
+  getCartItemCount(): number {
     const items = this.getCartItems();
     return items.reduce((total, item) => total + item.cantidad, 0);
-  }
-
-  // Verificar si el carrito está vacío
-  isEmpty(): boolean {
-    return this.getCartItems().length === 0;
   }
 }
 

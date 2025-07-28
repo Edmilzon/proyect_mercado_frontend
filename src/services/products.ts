@@ -40,6 +40,7 @@ export class ProductsService extends ApiService {
     precio_base: number;
     precio_actual: number;
     categoria_id: string;
+    vendedor_id: string; // OBLIGATORIO según las APIs
     cantidad_stock: number;
     url_imagen_principal?: string;
     esta_activo: boolean;
@@ -47,10 +48,14 @@ export class ProductsService extends ApiService {
     peso_g?: number;
   }): Promise<Producto> {
     try {
+      console.log('🔍 Enviando datos a la API:', productData);
+      console.log('🔍 URL de la API:', API_ENDPOINTS.PRODUCTS.BASE);
+      
       const response = await this.post<{ producto: Producto }>(API_ENDPOINTS.PRODUCTS.BASE, productData);
       return response.producto;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating product:', error);
+      console.error('Error response:', error.response?.data);
       throw error;
     }
   }
